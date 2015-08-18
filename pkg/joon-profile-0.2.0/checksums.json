@@ -1,0 +1,12 @@
+{
+  "metadata.json": "4e67133fc9ccf1dece4a3650c4cfe1a9",
+  "manifests/base/centos6.pp": "c25e966c0bedd9dbeb3a4934c1edf9cb",
+  "spec/classes/init_spec.rb": "2df6e67ed79399345e2c527662956d5d",
+  "templates/etc/postfix/main.cf.erb": "93b13c50887c0c513d33dfabe3c960d6",
+  "manifests/init.pp": "30689b1c0d27552e2062d01a8b3e7174",
+  "README.md": "29fcded6859b146a4296faf1f33cf0af",
+  "spec/spec_helper.rb": "0db89c9a486df193c0e40095422e19dc",
+  "Rakefile": "20b80e526e351a74df2001f504e756d2",
+  "tests/init.pp": "08660f933e6e1b09e6d53d6db1cac808",
+  "Gemfile": "dbc1a15e3a264c03878028240cfc5d89"
+}
