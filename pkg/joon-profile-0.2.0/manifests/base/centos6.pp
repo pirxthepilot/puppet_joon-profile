@@ -38,19 +38,43 @@
 
 class profile::base::centos6 {
 
-  # Hiera - required parameters
-  $ntp_servers       = hiera('profile::base::ntp_servers')
-  $ntp_interfaces    = hiera('profile::base::centos6::ntp_interfaces')
-  $postfix_relayhost = hiera('profile::base::centos6::postfix_relayhost', [])
+  # Hiera lookups
+  $timezone           = hiera('profile::base::timezone', 'UTC')
+  $ntp_servers        = hiera('profile::base::ntp_servers')
+  $ntp_interfaces     = hiera('profile::base::centos6::ntp_interfaces')
+  $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
+  $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
+  $sshd_port          = hiera('profile::base::centos6:sshd_port', 22)
+  $sshd_addressfamily = hiera('profile::base::centos6:sshd_addressfamily', 'any')
+  $sshd_listenaddress = hiera('profile::base::centos6:sshd_listenaddress', [ '0.0.0.0' ])
+  $sshd_pubkeyauth    = hiera('profile::base::centos6:sshd_pubkeyauth', 'yes')
+  $sshd_passwordauth  = hiera('profile::base::centos6:sshd_passwordauth', 'yes')
+  $sshd_usepam        = hiera('profile::base::centos6:sshd_usepam', 'yes')
+  $sshd_tcpforwarding = hiera('profile::base::centos6:sshd_tcpforwarding', 'no')
+  $sshd_allowgroups   = hiera('profile::base::centos6:sshd_allowgroups', 'wheel')
 
-  # Hiera - optional parameters
-  #profile::base::centos6::postfix_relayhost: (Array type)
+  # Local variables
+  $puppet_scripts_dir = '/root/puppet_scripts'
 
 
   # Some tools/utilities to install
   $packlist = [ 'epel-release', 'at', 'cronie-anacron', 'crontabs', 'ed', 'sed', 'screen', 'man', 'nano', 'srm', 'tcp_wrappers', 'vim-enhanced', 'wget', 'sysstat' ]
   package { $packlist: ensure => 'installed' }
 
+
+  # Create puppet_scripts directory
+  file { $puppet_scripts_dir:
+    ensure => 'directory',
+    owner  => 'root',
+    group  => 'root',
+    mode   => 750
+  }
+
+
+  # Set timezone
+  class { '::timezone': timezone => $timezone }
+
+  
   # Sysctl parameters
   file { '/etc/sysctl.conf': ensure => 'absent' }  # Remove sysctl.conf; we will use sysctl.d instead
   class { '::sysctl::base': purge => true }        # Purge original contents of systcl.d (if any)
@@ -71,7 +95,7 @@ class profile::base::centos6 {
   sysctl { 'net.ipv6.conf.all.accept_redirects': value => '0' }
   sysctl { 'net.ipv6.conf.default.accept_redirects': value => '0' }
 
-  sysctl { 'net.ipv4.ip_forward': value => '0' }
+  sysctl { 'net.ipv4.ip_forward': value => $sysctl_ipv4forward }
   sysctl { 'net.ipv4.conf.default.rp_filter': value => '1' }
   sysctl { 'net.ipv4.conf.default.accept_source_route': value => '0' }
   sysctl { 'net.ipv4.conf.all.send_redirects': value => '0' }
@@ -91,10 +115,23 @@ class profile::base::centos6 {
   sysctl { 'net.bridge.bridge-nf-call-iptables': value => '0' }
   sysctl { 'net.bridge.bridge-nf-call-arptables': value => '0' }
 
+
   # Enabled/Disabled services
   service { 'ip6tables': ensure => 'stopped' }
 
-  # Detailed configs
+  # Sudoers
+  file_line { 'sudo_wheel':
+    path    => '/etc/sudoers',
+    line    => '%wheel  ALL=(ALL)       ALL',
+    match   => '#?\s?%wheel\s+ALL=\(ALL\)\s+ALL',
+    replace => true
+  }
+
+
+  ######################
+  ## Detailed configs ##
+  ######################
+
   class { '::ntp':
     package_manage => true,
     package_ensure => 'latest',
@@ -109,10 +146,66 @@ class profile::base::centos6 {
     ],
   }
 
+  class { '::ssh::server':
+    storeconfigs_enabled => false,
+    options => {
+      'Port' => $sshd_port,
+      'AddressFamily' => $sshd_addressfamily,
+      'ListenAddress' => $sshd_listenaddress,
+      'Protocol' => 2,
+      'SyslogFacility' => 'AUTHPRIV',
+      'LogLevel' => 'INFO',
+      'LoginGraceTime' => '2m',
+      'PermitRootLogin' => 'no',
+      'StrictModes' => 'yes',
+      'MaxAuthTries' => 5,
+      'MaxSessions' => 10,
+      'RSAAuthentication' => 'yes',
+      'PubkeyAuthentication' => $sshd_pubkeyauth,
+      'RhostsRSAAuthentication' => 'no',
+      'HostbasedAuthentication' => 'no',
+      'IgnoreRhosts' => 'yes',
+      'PasswordAuthentication' => $sshd_passwordauth,
+      'PermitEmptyPasswords' => 'no',
+      'ChallengeResponseAuthentication' => 'no',
+      'GSSAPIAuthentication' => 'yes',
+      'GSSAPICleanupCredentials' => 'yes',
+      'UsePAM' => $sshd_usepam,
+      'AcceptEnv' => [
+        'LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES',
+        'LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT',
+        'LC_IDENTIFICATION LC_ALL LANGUAGE',
+        'XMODIFIERS'
+      ],
+      'AllowTcpForwarding' => $sshd_tcpforwarding,
+      'X11Forwarding' => 'no',
+      'TCPKeepAlive' => 'yes',
+      'UsePrivilegeSeparation' => 'yes',
+      'PermitUserEnvironment' => 'no',
+      'Compression' => 'delayed',
+      'ClientAliveInterval' => '900',
+      'ClientAliveCountMax' => '0',
+      'ShowPatchLevel' => 'no',
+      'UseDNS' => $sshd_usedns,
+      'PermitTunnel' => 'no',
+      'ChrootDirectory' => 'none',
+      'Banner' => '/etc/issue.net',
+      'Subsystem' => 'sftp /usr/libexec/openssh/sftp-server',
+      'Ciphers' => 'aes192-ctr,aes256-ctr,aes128-ctr',
+      'MACs' => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
+      'AllowGroups' => $sshd_allowgroups
+    }
+    
+  }
+
+
+  ####################
+  ## Custom classes ##
+  ####################
+
   class postfix (
     $inet_protocols = 'ipv4',
     $relayhost = $profile::base::centos6::postfix_relayhost
-    #$relayhost = []
   ) {
     package { 'postfix': ensure => 'latest' }
     service { 'postfix':
@@ -129,7 +222,93 @@ class profile::base::centos6 {
       content => template('profile/etc/postfix/main.cf.erb')
     }
   }
-  include postfix
 
+  class auditd {
+    package { 'audit': ensure => 'latest' }
+    service { 'auditd':
+      ensure  => 'running',
+      enable  => true,
+      require => Package['audit']
+    }
+    file { '/etc/audit/auditd.conf':
+      notify  => Service['auditd'],
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      require => Package['audit'],
+      content => template('profile/etc/audit/auditd.conf.erb')
+    }
+    file_line { 'auditd_initd':
+      path    => '/etc/sysconfig/auditd',
+      line    => 'USE_AUGENRULES="yes"',
+      match   => 'USE_AUGENRULES="no"',
+      replace => true
+    }
+   # Initial rules.d entry
+    file { '/etc/audit/rules.d/audit.rules':
+      notify  => Service['auditd'],
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      require => Package['audit'],
+      content => template('profile/etc/audit/rules.d/audit.rules.erb')
+    }
+   # 2nd rules.d entry (cis01.rules)
+    file { '/root/puppet_scripts/audit_rules_custom.sh':
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/puppet_scripts/audit_rules_custom.sh')
+    }
+    exec { '/root/puppet_scripts/audit_rules_custom.sh':
+      cwd     => "/root",
+      creates => "/etc/audit/rules.d/cis01.rules",
+      path    => ["/bin"]
+    }
+   # 3rd and last rules.d entry (cis02.rules)
+    file { '/etc/audit/rules.d/cis02.rules':
+      notify  => Service['auditd'],
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      require => Package['audit'],
+      content => template('profile/etc/audit/rules.d/cis02.rules.erb')
+    }
+  }
+
+  class nowireless {
+    file { '/root/puppet_scripts/disable_wireless.sh':
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/puppet_scripts/disable_wireless.sh')
+    }
+    exec { '/root/puppet_scripts/disable_wireless.sh':
+      cwd     => "/root",
+      creates => "/etc/modprobe.d/blacklist-wireless.conf",
+      path    => ["/bin"]
+    }
+  }
+
+  class tcp_wrappers {
+    file_line { 'hosts.allow':
+      path    => '/etc/hosts.allow',
+      line    => 'sshd : ALL',
+      match   => '#\s*sshd\s*:\s*ALL',
+      replace => true
+    }
+    file_line { 'hosts.deny':
+      path    => '/etc/hosts.deny',
+      line    => 'ALL : ALL',
+      match   => '#\s*ALL\s*:\s*ALL',
+      replace => true
+    }
+  }
+
+  # Custom class includes
+  include tcp_wrappers
+  include nowireless
+  include postfix
+  include auditd
 
 }
