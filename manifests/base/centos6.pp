@@ -91,6 +91,7 @@ class profile::base::centos6 {
   sysctl { 'kernel.shmall': value => '4294967296' }
   sysctl { 'kernel.exec-shield': value => '1' }
   sysctl { 'kernel.randomize_va_space': value => '2' }
+  sysctl { 'fs.suid_dumpable': value => '0' }
   
   sysctl { 'net.ipv6.conf.all.disable_ipv6': value => '1' }
   sysctl { 'net.ipv6.conf.default.disable_ipv6': value => '1' }
@@ -449,6 +450,66 @@ class profile::base::centos6 {
 
   }
 
+  class miscellaneous {
+    
+    # Disable IPv5 on networking config 
+    file_line { 'sysconfig_network1':
+      path    => '/etc/sysconfig/network',
+      line    => 'NETWORKING_IPV6=no',
+      match   => '#*\s*NETWORKING_IPV6\s*=',
+      replace => true
+    }
+    file_line { 'sysconfig_network2':
+      path    => '/etc/sysconfig/network',
+      line    => 'IPV6INIT=no',
+      match   => '#*\s*IPV6INIT\s*=',
+      replace => true
+    }
+
+    # Require authentication for single user mode
+    file_line { 'sysconfig_init1':
+      path    => '/etc/sysconfig/init',
+      line    => 'SINGLE=/sbin/sulogin',
+      match   => '#*\s*SINGLE\s*=',
+      replace => true
+    }
+
+    # Disable interactive boot
+    file_line { 'sysconfig_init2':
+      path    => '/etc/sysconfig/init',
+      line    => 'PROMPT=no',
+      match   => '#*\s*PROMPT\s*=',
+      replace => true
+    }
+
+    # Warning banner
+    file { "/etc/issue":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/issue')
+    }
+    file { "/etc/issue.net":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/issue.net')
+    }
+
+    # Restrict core dumps
+    file { "/etc/security/limits.d/00-coredumps.conf":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/security/limits.d/00-coredumps.conf')
+    }
+
+  }
+
+
   # Custom class includes
   include filesystems
   include nowireless
@@ -456,6 +517,7 @@ class profile::base::centos6 {
   include file_permissions
   include iptables_init
   include postfix
+  include miscellaneous
   include auditd
 
 }

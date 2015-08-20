@@ -9,9 +9,10 @@
   "issues_url": null,
   "dependencies": [
     {"version_requirement":"4.1.x","name":"puppetlabs/ntp"},
+    {"version_requirement":"3.3.0","name":"saz/timezone"},
     {"version_requirement":"0.2.5","name":"jfryman/selinux"},
-    {"version_requirement":"2.8.1","name":"saz/ssh"},
     {"version_requirement":"1.0.2","name":"thias/sysctl"},
-    {"version_requirement":"3.3.0","name":"saz/timezone"}
+    {"version_requirement":"2.19.0","name":"ghoneycutt/pam"},
+    {"version_requirement":"2.8.1","name":"saz/ssh"}
   ]
 }
