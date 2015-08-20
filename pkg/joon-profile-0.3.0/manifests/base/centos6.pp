@@ -58,7 +58,11 @@ class profile::base::centos6 {
 
 
   # Some tools/utilities to install
-  $packlist = [ 'epel-release', 'at', 'cronie-anacron', 'crontabs', 'ed', 'sed', 'screen', 'man', 'nano', 'srm', 'tcp_wrappers', 'vim-enhanced', 'wget', 'sysstat' ]
+  $packlist = [
+    'epel-release','at','cronie-anacron','crontabs',
+    'curl','ed','sed','screen','man','nano','srm',
+    'tcp_wrappers','tree','vim-enhanced','wget','sysstat'
+  ]
   package { $packlist: ensure => 'installed' }
 
 
@@ -67,7 +71,7 @@ class profile::base::centos6 {
     ensure => 'directory',
     owner  => 'root',
     group  => 'root',
-    mode   => 750
+    mode   => '0750'
   }
 
 
@@ -148,54 +152,58 @@ class profile::base::centos6 {
 
   class { '::ssh::server':
     storeconfigs_enabled => false,
-    options => {
-      'Port' => $sshd_port,
-      'AddressFamily' => $sshd_addressfamily,
-      'ListenAddress' => $sshd_listenaddress,
-      'Protocol' => 2,
-      'SyslogFacility' => 'AUTHPRIV',
-      'LogLevel' => 'INFO',
-      'LoginGraceTime' => '2m',
-      'PermitRootLogin' => 'no',
-      'StrictModes' => 'yes',
-      'MaxAuthTries' => 5,
-      'MaxSessions' => 10,
-      'RSAAuthentication' => 'yes',
-      'PubkeyAuthentication' => $sshd_pubkeyauth,
-      'RhostsRSAAuthentication' => 'no',
-      'HostbasedAuthentication' => 'no',
-      'IgnoreRhosts' => 'yes',
-      'PasswordAuthentication' => $sshd_passwordauth,
-      'PermitEmptyPasswords' => 'no',
+    options              => {
+      'Port'                            => $sshd_port,
+      'AddressFamily'                   => $sshd_addressfamily,
+      'ListenAddress'                   => $sshd_listenaddress,
+      'Protocol'                        => 2,
+      'SyslogFacility'                  => 'AUTHPRIV',
+      'LogLevel'                        => 'INFO',
+      'LoginGraceTime'                  => '2m',
+      'PermitRootLogin'                 => 'no',
+      'StrictModes'                     => 'yes',
+      'MaxAuthTries'                    => 5,
+      'MaxSessions'                     => 10,
+      'RSAAuthentication'               => 'yes',
+      'PubkeyAuthentication'            => $sshd_pubkeyauth,
+      'RhostsRSAAuthentication'         => 'no',
+      'HostbasedAuthentication'         => 'no',
+      'IgnoreRhosts'                    => 'yes',
+      'PasswordAuthentication'          => $sshd_passwordauth,
+      'PermitEmptyPasswords'            => 'no',
       'ChallengeResponseAuthentication' => 'no',
-      'GSSAPIAuthentication' => 'yes',
-      'GSSAPICleanupCredentials' => 'yes',
-      'UsePAM' => $sshd_usepam,
-      'AcceptEnv' => [
+      'GSSAPIAuthentication'            => 'yes',
+      'GSSAPICleanupCredentials'        => 'yes',
+      'UsePAM'                          => $sshd_usepam,
+      'AcceptEnv'                       => [
         'LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES',
         'LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT',
         'LC_IDENTIFICATION LC_ALL LANGUAGE',
         'XMODIFIERS'
       ],
-      'AllowTcpForwarding' => $sshd_tcpforwarding,
-      'X11Forwarding' => 'no',
-      'TCPKeepAlive' => 'yes',
-      'UsePrivilegeSeparation' => 'yes',
-      'PermitUserEnvironment' => 'no',
-      'Compression' => 'delayed',
-      'ClientAliveInterval' => '900',
-      'ClientAliveCountMax' => '0',
-      'ShowPatchLevel' => 'no',
-      'UseDNS' => $sshd_usedns,
-      'PermitTunnel' => 'no',
-      'ChrootDirectory' => 'none',
-      'Banner' => '/etc/issue.net',
-      'Subsystem' => 'sftp /usr/libexec/openssh/sftp-server',
-      'Ciphers' => 'aes192-ctr,aes256-ctr,aes128-ctr',
-      'MACs' => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
-      'AllowGroups' => $sshd_allowgroups
+      'AllowTcpForwarding'              => $sshd_tcpforwarding,
+      'X11Forwarding'                   => 'no',
+      'TCPKeepAlive'                    => 'yes',
+      'UsePrivilegeSeparation'          => 'yes',
+      'PermitUserEnvironment'           => 'no',
+      'Compression'                     => 'delayed',
+      'ClientAliveInterval'             => '900',
+      'ClientAliveCountMax'             => '0',
+      'ShowPatchLevel'                  => 'no',
+      'UseDNS'                          => $sshd_usedns,
+      'PermitTunnel'                    => 'no',
+      'ChrootDirectory'                 => 'none',
+      'Banner'                          => '/etc/issue.net',
+      'Subsystem'                       => 'sftp /usr/libexec/openssh/sftp-server',
+      'Ciphers'                         => 'aes192-ctr,aes256-ctr,aes128-ctr',
+      'MACs'                            => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
+      'AllowGroups'                     => $sshd_allowgroups
     }
     
+  }
+
+  class { '::selinux':
+    mode => 'enforcing'
   }
 
 
@@ -223,7 +231,7 @@ class profile::base::centos6 {
     }
   }
 
-  class auditd {
+  class auditd ($puppet_scripts_dir = '/root/puppet_scripts') {
     package { 'audit': ensure => 'latest' }
     service { 'auditd':
       ensure  => 'running',
@@ -236,7 +244,7 @@ class profile::base::centos6 {
       group   => 'root',
       mode    => '0640',
       require => Package['audit'],
-      content => template('profile/etc/audit/auditd.conf.erb')
+      content => file('profile/centos6/etc/audit/auditd.conf')
     }
     file_line { 'auditd_initd':
       path    => '/etc/sysconfig/auditd',
@@ -251,19 +259,18 @@ class profile::base::centos6 {
       group   => 'root',
       mode    => '0640',
       require => Package['audit'],
-      content => template('profile/etc/audit/rules.d/audit.rules.erb')
+      content => file('profile/centos6/etc/audit/rules.d/audit.rules')
     }
    # 2nd rules.d entry (cis01.rules)
-    file { '/root/puppet_scripts/audit_rules_custom.sh':
+    file { "$puppet_scripts_dir/audit_rules_custom.sh":
       owner   => 'root',
       group   => 'root',
       mode    => '0750',
-      content => file('profile/puppet_scripts/audit_rules_custom.sh')
+      content => file('profile/centos6/puppet_scripts/audit_rules_custom.sh')
     }
-    exec { '/root/puppet_scripts/audit_rules_custom.sh':
-      cwd     => "/root",
-      creates => "/etc/audit/rules.d/cis01.rules",
-      path    => ["/bin"]
+    exec { "$puppet_scripts_dir/audit_rules_custom.sh":
+      creates => '/etc/audit/rules.d/cis01.rules',
+      path    => ['/bin']
     }
    # 3rd and last rules.d entry (cis02.rules)
     file { '/etc/audit/rules.d/cis02.rules':
@@ -272,21 +279,20 @@ class profile::base::centos6 {
       group   => 'root',
       mode    => '0640',
       require => Package['audit'],
-      content => template('profile/etc/audit/rules.d/cis02.rules.erb')
+      content => file('profile/centos6/etc/audit/rules.d/cis02.rules')
     }
   }
 
-  class nowireless {
-    file { '/root/puppet_scripts/disable_wireless.sh':
+  class nowireless ($puppet_scripts_dir = '/root/puppet_scripts') {
+    file { "$puppet_scripts_dir/disable_wireless.sh":
       owner   => 'root',
       group   => 'root',
       mode    => '0750',
-      content => file('profile/puppet_scripts/disable_wireless.sh')
+      content => file('profile/centos6/puppet_scripts/disable_wireless.sh')
     }
-    exec { '/root/puppet_scripts/disable_wireless.sh':
-      cwd     => "/root",
-      creates => "/etc/modprobe.d/blacklist-wireless.conf",
-      path    => ["/bin"]
+    exec { "$puppet_scripts_dir/disable_wireless.sh":
+      creates => '/etc/modprobe.d/blacklist-wireless.conf',
+      path    => ['/bin']
     }
   }
 
@@ -305,9 +311,150 @@ class profile::base::centos6 {
     }
   }
 
+  class file_permissions {
+    
+    file { '/etc/anacrontab':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/crontab':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.hourly':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.daily':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.weekly':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.monthly':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.d':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/cron.allow':
+      ensure => 'present',
+      owner  => 'root',
+      group  => 'root',
+      mode   => 'og-rwx',
+    }
+    file { '/etc/at.allow':
+      ensure => 'present',
+      owner  => 'root',
+      group  => 'root',
+      mode   => 'og-rwx',
+    }
+    file { '/etc/cron.deny': ensure => 'absent' }
+    file { '/etc/at.deny':   ensure => 'absent' }
+    file { '/etc/grub.conf':
+      owner => 'root',
+      group => 'root',
+      mode  => 'og-rwx',
+    }
+    file { '/etc/passwd':
+      owner => 'root',
+      group => 'root',
+      mode  => '0644',
+    }
+    file { '/etc/group':
+      owner => 'root',
+      group => 'root',
+      mode  => '0644',
+    }
+    file { '/etc/shadow':
+      owner => 'root',
+      group => 'root',
+      mode  => '0000',
+    }
+    file { '/etc/gshadow':
+      owner => 'root',
+      group => 'root',
+      mode  => '0000',
+    }
+    file { '/etc/sysconfig/iptables':
+      owner => 'root',
+      group => 'root',
+      mode  => '0600',
+    }
+
+  }
+
+  class filesystems {
+
+    mount { '/dev/shm':
+      fstype  => 'tmpfs',
+      options => 'defaults,nodev,nosuid,noexec',
+    }
+    mount { '/boot':
+      fstype  => 'ext4',
+      options => 'defaults,nodev,nosuid,noexec',
+    }
+    mount { '/tmp':
+      fstype  => 'ext4',
+      options => 'defaults,nodev,nosuid,noexec',
+    }
+    mount { '/home':
+      fstype  => 'ext4',
+      options => 'defaults,nodev,nosuid',
+    }
+    mount { '/var':
+      fstype  => 'ext4',
+      options => 'defaults,nosuid',
+    }
+    mount { '/var/tmp':
+      ensure  => 'mounted',
+      device  => '/tmp',
+      fstype  => 'none',
+      options => 'bind',
+    }
+    file { '/etc/modprobe.d/blacklist-filesystems.conf':
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/modprobe.d/blacklist-filesystems.conf')
+    }
+
+  }
+
+  class iptables_init ($puppet_scripts_dir = '/root/puppet_scripts') {
+
+    file { "$puppet_scripts_dir/iptables_init.sh":
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/centos6/puppet_scripts/iptables_init.sh')
+    }
+    exec { "$puppet_scripts_dir/iptables_init.sh":
+      onlyif   => "! /bin/grep '\-A INPUT \-j DROP' /etc/sysconfig/iptables",
+      path     => ['/bin'],
+      provider => 'shell'
+    }
+
+  }
+
   # Custom class includes
-  include tcp_wrappers
+  include filesystems
   include nowireless
+  include tcp_wrappers
+  include file_permissions
+  include iptables_init
   include postfix
   include auditd
 

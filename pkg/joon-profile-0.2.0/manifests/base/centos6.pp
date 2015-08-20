@@ -67,7 +67,7 @@ class profile::base::centos6 {
     ensure => 'directory',
     owner  => 'root',
     group  => 'root',
-    mode   => 750
+    mode   => '0750'
   }
 
 
@@ -148,52 +148,52 @@ class profile::base::centos6 {
 
   class { '::ssh::server':
     storeconfigs_enabled => false,
-    options => {
-      'Port' => $sshd_port,
-      'AddressFamily' => $sshd_addressfamily,
-      'ListenAddress' => $sshd_listenaddress,
-      'Protocol' => 2,
-      'SyslogFacility' => 'AUTHPRIV',
-      'LogLevel' => 'INFO',
-      'LoginGraceTime' => '2m',
-      'PermitRootLogin' => 'no',
-      'StrictModes' => 'yes',
-      'MaxAuthTries' => 5,
-      'MaxSessions' => 10,
-      'RSAAuthentication' => 'yes',
-      'PubkeyAuthentication' => $sshd_pubkeyauth,
-      'RhostsRSAAuthentication' => 'no',
-      'HostbasedAuthentication' => 'no',
-      'IgnoreRhosts' => 'yes',
-      'PasswordAuthentication' => $sshd_passwordauth,
-      'PermitEmptyPasswords' => 'no',
+    options              => {
+      'Port'                            => $sshd_port,
+      'AddressFamily'                   => $sshd_addressfamily,
+      'ListenAddress'                   => $sshd_listenaddress,
+      'Protocol'                        => 2,
+      'SyslogFacility'                  => 'AUTHPRIV',
+      'LogLevel'                        => 'INFO',
+      'LoginGraceTime'                  => '2m',
+      'PermitRootLogin'                 => 'no',
+      'StrictModes'                     => 'yes',
+      'MaxAuthTries'                    => 5,
+      'MaxSessions'                     => 10,
+      'RSAAuthentication'               => 'yes',
+      'PubkeyAuthentication'            => $sshd_pubkeyauth,
+      'RhostsRSAAuthentication'         => 'no',
+      'HostbasedAuthentication'         => 'no',
+      'IgnoreRhosts'                    => 'yes',
+      'PasswordAuthentication'          => $sshd_passwordauth,
+      'PermitEmptyPasswords'            => 'no',
       'ChallengeResponseAuthentication' => 'no',
-      'GSSAPIAuthentication' => 'yes',
-      'GSSAPICleanupCredentials' => 'yes',
-      'UsePAM' => $sshd_usepam,
-      'AcceptEnv' => [
+      'GSSAPIAuthentication'            => 'yes',
+      'GSSAPICleanupCredentials'        => 'yes',
+      'UsePAM'                          => $sshd_usepam,
+      'AcceptEnv'                       => [
         'LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES',
         'LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT',
         'LC_IDENTIFICATION LC_ALL LANGUAGE',
         'XMODIFIERS'
       ],
-      'AllowTcpForwarding' => $sshd_tcpforwarding,
-      'X11Forwarding' => 'no',
-      'TCPKeepAlive' => 'yes',
-      'UsePrivilegeSeparation' => 'yes',
-      'PermitUserEnvironment' => 'no',
-      'Compression' => 'delayed',
-      'ClientAliveInterval' => '900',
-      'ClientAliveCountMax' => '0',
-      'ShowPatchLevel' => 'no',
-      'UseDNS' => $sshd_usedns,
-      'PermitTunnel' => 'no',
-      'ChrootDirectory' => 'none',
-      'Banner' => '/etc/issue.net',
-      'Subsystem' => 'sftp /usr/libexec/openssh/sftp-server',
-      'Ciphers' => 'aes192-ctr,aes256-ctr,aes128-ctr',
-      'MACs' => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
-      'AllowGroups' => $sshd_allowgroups
+      'AllowTcpForwarding'              => $sshd_tcpforwarding,
+      'X11Forwarding'                   => 'no',
+      'TCPKeepAlive'                    => 'yes',
+      'UsePrivilegeSeparation'          => 'yes',
+      'PermitUserEnvironment'           => 'no',
+      'Compression'                     => 'delayed',
+      'ClientAliveInterval'             => '900',
+      'ClientAliveCountMax'             => '0',
+      'ShowPatchLevel'                  => 'no',
+      'UseDNS'                          => $sshd_usedns,
+      'PermitTunnel'                    => 'no',
+      'ChrootDirectory'                 => 'none',
+      'Banner'                          => '/etc/issue.net',
+      'Subsystem'                       => 'sftp /usr/libexec/openssh/sftp-server',
+      'Ciphers'                         => 'aes192-ctr,aes256-ctr,aes128-ctr',
+      'MACs'                            => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
+      'AllowGroups'                     => $sshd_allowgroups
     }
     
   }
@@ -261,9 +261,9 @@ class profile::base::centos6 {
       content => file('profile/puppet_scripts/audit_rules_custom.sh')
     }
     exec { '/root/puppet_scripts/audit_rules_custom.sh':
-      cwd     => "/root",
-      creates => "/etc/audit/rules.d/cis01.rules",
-      path    => ["/bin"]
+      cwd     => '/root',
+      creates => '/etc/audit/rules.d/cis01.rules',
+      path    => ['/bin']
     }
    # 3rd and last rules.d entry (cis02.rules)
     file { '/etc/audit/rules.d/cis02.rules':
@@ -284,9 +284,9 @@ class profile::base::centos6 {
       content => file('profile/puppet_scripts/disable_wireless.sh')
     }
     exec { '/root/puppet_scripts/disable_wireless.sh':
-      cwd     => "/root",
-      creates => "/etc/modprobe.d/blacklist-wireless.conf",
-      path    => ["/bin"]
+      cwd     => '/root',
+      creates => '/etc/modprobe.d/blacklist-wireless.conf',
+      path    => ['/bin']
     }
   }
 
