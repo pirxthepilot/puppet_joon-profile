@@ -39,8 +39,10 @@
 class profile::base::centos6 {
 
   # Hiera lookups
-  $timezone           = hiera('profile::base::timezone', 'UTC')
   $ntp_servers        = hiera('profile::base::ntp_servers')
+  $timezone           = hiera('profile::base::timezone')
+  $proxy_server       = hiera('profile::base::proxy_server', '')
+  $proxy_port         = hiera('profile::base::proxy_port', '')
   $ntp_interfaces     = hiera('profile::base::centos6::ntp_interfaces')
   $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
   $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
@@ -52,6 +54,19 @@ class profile::base::centos6 {
   $sshd_usepam        = hiera('profile::base::centos6:sshd_usepam', 'yes')
   $sshd_tcpforwarding = hiera('profile::base::centos6:sshd_tcpforwarding', 'no')
   $sshd_allowgroups   = hiera('profile::base::centos6:sshd_allowgroups', 'wheel')
+  $clamav_excludes    = hiera('profile::base::centos6::clamav_excludes', [])
+  $clamav_mirrors     = hiera('profile::base::centos6::clamav_mirrors', [])
+  $clamav_scanhour    = hiera('profile::base::centos6::clamav_scanhour', '5')
+  $login_retry        = hiera('profile::base::centos6::login_retry', '5')
+  $login_pw_minlen    = hiera('profile::base::centos6::login_pw_minlen', '13')
+  $login_pw_minclass  = hiera('profile::base::centos6::login_pw_minclass', '3')
+  $login_pw_remember  = hiera('profile::base::centos6::login_pw_remember', '24')
+  $login_pw_maxdays   = hiera('profile::base::centos6::login_pw_maxdays', '90')
+  $login_pw_mindays   = hiera('profile::base::centos6::login_pw_mindays', '1')
+  $login_pw_warnage   = hiera('profile::base::centos6::login_pw_warnage', '14')
+  $login_lo_attempts  = hiera('profile::base::centos6::login_lo_attempts', '5')
+  $login_lo_unlocksec = hiera('profile::base::centos6::login_lo_unlocksec', '900')
+
 
   # Local variables
   $puppet_scripts_dir = '/root/puppet_scripts'
@@ -212,6 +227,7 @@ class profile::base::centos6 {
   ## Custom classes ##
   ####################
 
+
   class postfix (
     $inet_protocols = 'ipv4',
     $relayhost = $profile::base::centos6::postfix_relayhost
@@ -228,9 +244,10 @@ class profile::base::centos6 {
       group   => 'root',
       mode    => '0644',
       require => Package['postfix'],
-      content => template('profile/etc/postfix/main.cf.erb')
+      content => template('profile/centos6/etc/postfix/main.cf.erb')
     }
   }
+
 
   class auditd ($puppet_scripts_dir = '/root/puppet_scripts') {
     package { 'audit': ensure => 'latest' }
@@ -284,6 +301,7 @@ class profile::base::centos6 {
     }
   }
 
+
   class nowireless ($puppet_scripts_dir = '/root/puppet_scripts') {
     file { "$puppet_scripts_dir/disable_wireless.sh":
       owner   => 'root',
@@ -296,6 +314,7 @@ class profile::base::centos6 {
       path    => ['/bin']
     }
   }
+
 
   class tcp_wrappers {
     file_line { 'hosts.allow':
@@ -311,6 +330,7 @@ class profile::base::centos6 {
       replace => true
     }
   }
+
 
   class file_permissions {
     
@@ -396,6 +416,7 @@ class profile::base::centos6 {
 
   }
 
+
   class filesystems {
 
     mount { '/dev/shm':
@@ -434,6 +455,7 @@ class profile::base::centos6 {
 
   }
 
+
   class iptables_init ($puppet_scripts_dir = '/root/puppet_scripts') {
 
     file { "$puppet_scripts_dir/iptables_init.sh":
@@ -449,6 +471,7 @@ class profile::base::centos6 {
     }
 
   }
+
 
   class miscellaneous {
     
@@ -510,13 +533,163 @@ class profile::base::centos6 {
   }
 
 
+  class clamav (
+
+    $exclude_paths = $profile::base::centos6::clamav_excludes,  # Only add non-default paths
+    $db_mirrors    = $profile::base::centos6::clamav_mirrors,
+    $proxy_server  = $profile::base::centos6::proxy_server,
+    $proxy_port    = $profile::base::centos6::proxy_port,
+    $scan_hour     = $profile::base::centos6::clamav_scanhour   # The hour of day clamdscan.sh runs
+
+  ) {
+
+    $clamdscan = '/var/lib/clamav/clamdscan.sh'
+
+    # Ensure package / service
+    package { 'clamav': ensure => 'installed' }
+    package { 'clamd':  ensure => 'installed' }
+    service { 'clamd':
+      ensure  => 'running',
+      enable  => 'true',
+      require => Package['clamd']
+    }
+
+    # Config files from template
+    file { '/etc/clamd.conf':
+      notify  => Service['clamd'],
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      require => Package['clamd'],
+      content => template('profile/centos6/etc/clamd.conf.erb')
+    }
+    file { '/etc/freshclam.conf':
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      content => template('profile/centos6/etc/freshclam.conf.erb')
+    }
+    
+    # Custom selinux settings
+    selinux::boolean { 'antivirus_can_scan_system': ensure => 'on' }
+    selinux::boolean { 'antivirus_use_jit': ensure => 'on' }
+    
+    # Periodic system scan script
+    file { $clamdscan:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0755',
+      content => file("profile/centos6$clamdscan")
+    }
+    file { '/etc/logrotate.d/clamdscan':
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file("profile/centos6/etc/logrotate.d/clamdscan")
+    }
+    cron { 'clamdscan.sh':
+      name    => "Daily antivirus scan",
+      command => $clamdscan,
+      user    => 'root',
+      hour    => $scan_hour,
+      minute  => fqdn_rand(60)
+    }
+
+  }
+
+
+  class authentication (
+
+    $login_retry   = $profile::base::centos6::login_retry,
+    $pw_minlen     = $profile::base::centos6::login_pw_minlen,
+    $pw_minclass   = $profile::base::centos6::login_pw_minclass,
+    $pw_remember   = $profile::base::centos6::login_pw_remember,
+    $pw_maxdays    = $profile::base::centos6::login_pw_maxdays,
+    $pw_mindays    = $profile::base::centos6::login_pw_mindays,
+    $pw_warnage    = $profile::base::centos6::login_pw_warnage,
+    $lo_attempts   = $profile::base::centos6::login_lo_attempts,
+    $lo_unlocktime = $profile::base::centos6::login_lo_unlocksec
+
+  ) {
+
+    $system_auth_file   = '/etc/pam.d/system-auth-local'  
+    $password_auth_file = '/etc/pam.d/password-auth-local'  
+    $su_file            = '/etc/pam.d/su'
+    $logindefs_file     = '/etc/login.defs'
+    $securetty_file     = '/etc/securetty'
+    $profile_file       = '/etc/profile'
+
+    # /etc/pam.d
+    file { $system_auth_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => template("profile/centos6$system_auth_file.erb")
+    }
+    file { $password_auth_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => template("profile/centos6$password_auth_file.erb")
+    }
+    file { '/etc/pam.d/system-auth':
+      ensure => 'link',
+      target => $system_auth_file
+    }
+    file { '/etc/pam.d/password-auth':
+      ensure => 'link',
+      target => $password_auth_file
+    }
+    file_line { 'pam_su':
+      path    => $su_file,
+      line    => 'auth    required    pam_wheel.so use_uid',
+      match   => '#*\s*auth\s*required\s*pam_wheel\.so\s*use_uid',
+      replace => true
+    }
+
+    # /etc/login.defs
+    file { $logindefs_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => template("profile/centos6$logindefs_file.erb")
+    }
+
+    # /etc/securetty
+    file { $securetty_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0600',
+      content => file("profile/centos6$securetty_file")
+    }
+
+    # /etc/profile
+    file { $profile_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file("profile/centos6$profile_file")
+    }
+
+  }
+
+
   # Custom class includes
   include filesystems
   include nowireless
+  include authentication
   include tcp_wrappers
-  include file_permissions
   include iptables_init
+  include file_permissions
   include postfix
+  include clamav
   include miscellaneous
   include auditd
 
