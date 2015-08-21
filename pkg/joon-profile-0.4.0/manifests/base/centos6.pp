@@ -66,19 +66,11 @@ class profile::base::centos6 {
   $login_pw_warnage   = hiera('profile::base::centos6::login_pw_warnage', '14')
   $login_lo_attempts  = hiera('profile::base::centos6::login_lo_attempts', '5')
   $login_lo_unlocksec = hiera('profile::base::centos6::login_lo_unlocksec', '900')
+  $puppet_interval    = hiera('profile::base::puppet_interval', '30m' )
 
 
   # Local variables
   $puppet_scripts_dir = '/root/puppet_scripts'
-
-
-  # Some tools/utilities to install
-  $packlist = [
-    'epel-release','at','cronie-anacron','crontabs',
-    'curl','ed','sed','screen','man','nano','srm',
-    'tcp_wrappers','tree','vim-enhanced','wget','sysstat'
-  ]
-  package { $packlist: ensure => 'installed' }
 
 
   # Create puppet_scripts directory
@@ -90,8 +82,13 @@ class profile::base::centos6 {
   }
 
 
-  # Set timezone
-  class { '::timezone': timezone => $timezone }
+  # Some tools/utilities to install
+  $packlist = [
+    'epel-release','at','cronie-anacron','crontabs',
+    'curl','ed','sed','screen','man','nano','srm',
+    'tcp_wrappers','tree','vim-enhanced','wget','sysstat'
+  ]
+  package { $packlist: ensure => 'installed' }
 
   
   # Sysctl parameters
@@ -131,13 +128,10 @@ class profile::base::centos6 {
   sysctl { 'net.ipv4.icmp_ignore_bogus_error_responses': value => '1' }
   sysctl { 'net.ipv4.conf.all.rp_filter': value => '1' }
   sysctl { 'net.ipv4.tcp_syncookies': value => '1' }
-  sysctl { 'net.bridge.bridge-nf-call-ip6tables': value => '0' }
-  sysctl { 'net.bridge.bridge-nf-call-iptables': value => '0' }
-  sysctl { 'net.bridge.bridge-nf-call-arptables': value => '0' }
+  #sysctl { 'net.bridge.bridge-nf-call-ip6tables': value => '0' }
+  #sysctl { 'net.bridge.bridge-nf-call-iptables': value => '0' }
+  #sysctl { 'net.bridge.bridge-nf-call-arptables': value => '0' }
 
-
-  # Enabled/Disabled services
-  service { 'ip6tables': ensure => 'stopped' }
 
   # Sudoers
   file_line { 'sudo_wheel':
@@ -302,36 +296,6 @@ class profile::base::centos6 {
   }
 
 
-  class nowireless ($puppet_scripts_dir = '/root/puppet_scripts') {
-    file { "$puppet_scripts_dir/disable_wireless.sh":
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0750',
-      content => file('profile/centos6/puppet_scripts/disable_wireless.sh')
-    }
-    exec { "$puppet_scripts_dir/disable_wireless.sh":
-      creates => '/etc/modprobe.d/blacklist-wireless.conf',
-      path    => ['/bin']
-    }
-  }
-
-
-  class tcp_wrappers {
-    file_line { 'hosts.allow':
-      path    => '/etc/hosts.allow',
-      line    => 'sshd : ALL',
-      match   => '#\s*sshd\s*:\s*ALL',
-      replace => true
-    }
-    file_line { 'hosts.deny':
-      path    => '/etc/hosts.deny',
-      line    => 'ALL : ALL',
-      match   => '#\s*ALL\s*:\s*ALL',
-      replace => true
-    }
-  }
-
-
   class file_permissions {
     
     file { '/etc/anacrontab':
@@ -473,9 +437,9 @@ class profile::base::centos6 {
   }
 
 
-  class miscellaneous {
-    
-    # Disable IPv5 on networking config 
+  class networking ($puppet_scripts_dir = '/root/puppet_scripts') {
+  
+    # Disable IPv6 on networking config 
     file_line { 'sysconfig_network1':
       path    => '/etc/sysconfig/network',
       line    => 'NETWORKING_IPV6=no',
@@ -488,6 +452,46 @@ class profile::base::centos6 {
       match   => '#*\s*IPV6INIT\s*=',
       replace => true
     }
+
+    # Disable ip6tables
+    service { 'ip6tables': ensure => 'stopped' }
+
+    # Disable wireless modules
+    file { "$puppet_scripts_dir/disable_wireless.sh":
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/centos6/puppet_scripts/disable_wireless.sh')
+    }
+    exec { "$puppet_scripts_dir/disable_wireless.sh":
+      creates => '/etc/modprobe.d/blacklist-wireless.conf',
+      path    => ['/bin']
+    }
+
+    # tcp_wrappers
+    file_line { 'hosts.allow':
+      path    => '/etc/hosts.allow',
+      line    => 'sshd : ALL',
+      match   => '#\s*sshd\s*:\s*ALL',
+      replace => true
+    }
+    file_line { 'hosts.deny':
+      path    => '/etc/hosts.deny',
+      line    => 'ALL : ALL',
+      match   => '#\s*ALL\s*:\s*ALL',
+      replace => true
+    }
+
+  }
+
+  class miscellaneous (
+
+    $tz = $profile::base::centos6::timezone
+
+  ) {
+    
+    # Set timezone
+    class { '::timezone': timezone => $tz }
 
     # Require authentication for single user mode
     file_line { 'sysconfig_init1':
@@ -681,16 +685,45 @@ class profile::base::centos6 {
   }
 
 
+  class puppet_agent (
+
+    $puppetmaster = $::servername,
+    $runinterval  = $profile::base::centos6::puppet_interval
+  
+  ) {
+    
+    # Only apply the template on agents, not on puppetmaster
+    if $::fqdn != $::servername {
+      file { '/etc/puppet/puppet.conf':
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0644',
+        content => template("profile/centos6/etc/puppet/puppet.conf.erb")
+      }
+    } else {
+      file_line { 'master_puppet.conf':
+        path    => '/etc/puppet/puppet.conf',
+        line    => "    runinterval       = $runinterval",
+        match   => '\s*runinterval\s*=',
+        replace => true
+      }
+    }
+    service { 'puppet': enable  => true }
+
+  }
+
+
   # Custom class includes
-  include filesystems
-  include nowireless
-  include authentication
-  include tcp_wrappers
+  include miscellaneous
+  include networking
   include iptables_init
+  include filesystems
+  include authentication
   include file_permissions
   include postfix
   include clamav
-  include miscellaneous
   include auditd
+  include puppet_agent
 
 }
