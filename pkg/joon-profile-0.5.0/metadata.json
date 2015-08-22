@@ -1,17 +1,17 @@
 {
   "name": "joon-profile",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "author": "joon",
   "summary": "Custom profile module",
   "license": "Apache 2.0",
   "source": "",
-  "issues_url": null,
   "project_page": null,
+  "issues_url": null,
   "dependencies": [
-    {"version_requirement":"0.2.5","name":"jfryman/selinux"},
     {"version_requirement":"4.1.x","name":"puppetlabs/ntp"},
+    {"version_requirement":"0.2.5","name":"jfryman/selinux"},
+    {"version_requirement":"3.3.0","name":"saz/timezone"},
     {"version_requirement":"2.8.1","name":"saz/ssh"},
-    {"version_requirement":"1.0.2","name":"thias/sysctl"},
-    {"version_requirement":"3.3.0","name":"saz/timezone"}
+    {"version_requirement":"1.0.2","name":"thias/sysctl"}
   ]
 }

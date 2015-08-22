@@ -560,6 +560,9 @@ class profile::base::centos6 {
       content => file('profile/centos6/etc/security/limits.d/00-coredumps.conf')
     }
 
+   # Undo disabling of IPv6 module (relic of standard CentOS VM template)
+   file { "/etc/modprobe.d/ipv6.conf": ensure => 'absent' }
+
   }
 
 

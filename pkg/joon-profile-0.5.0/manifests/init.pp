@@ -1,6 +1,6 @@
-# == Class: profile::openvpn
+# == Class: profile
 #
-# OpenVPN server
+# Full description of class profile here.
 #
 # === Parameters
 #
@@ -35,17 +35,7 @@
 #
 # Copyright 2015 Your name here, unless otherwise noted.
 #
-class profile::openvpn::common ($sysctl_ipv4forward='1') {
+class profile {
 
-  class { '::sysctl::base::values':
-    net.ipv4.ip_forward    => {
-      value => $sysctl_ipv4forward
-    }
-    #sysctl { 'net.ipv4.ip_forward': value => $sysctl_ipv4forward } 
-  }
 
-}
-
-class profile::openvpn {
-  class { '::profile::openvpn::common': }
 }
