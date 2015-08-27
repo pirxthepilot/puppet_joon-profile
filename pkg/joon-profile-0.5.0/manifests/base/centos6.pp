@@ -41,8 +41,8 @@ class profile::base::centos6 {
   # Hiera lookups
   $ntp_servers        = hiera('profile::base::ntp_servers')
   $timezone           = hiera('profile::base::timezone')
-  $proxy_server       = hiera('profile::base::proxy_server', '')
-  $proxy_port         = hiera('profile::base::proxy_port', '')
+  $proxy_server       = hiera('profile::base::proxy_server', 'none')
+  $proxy_port         = hiera('profile::base::proxy_port', 'none')
   $ntp_interfaces     = hiera('profile::base::centos6::ntp_interfaces')
   $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
   $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
@@ -82,7 +82,9 @@ class profile::base::centos6 {
 
   class firstthingsfirst (
     $puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir,
-    $tz = $profile::base::centos6::timezone
+    $tz                 = $profile::base::centos6::timezone,
+    $proxy_server       = $profile::base::centos6::proxy_server,
+    $proxy_port         = $profile::base::centos6::proxy_port
   ) {
     
     # Set timezone
@@ -104,6 +106,19 @@ class profile::base::centos6 {
       replace => true
     }
 
+    # Set proxy server for yum
+    # Only apply if proxy is set
+    if $proxy_server!=undef and $proxy_server!='none' {
+      yumrepo { 'main': proxy => "http://$proxy_server:$proxy_port" }
+    } else {
+      exec { "/bin/sed -i '/^proxy=/d' /etc/yum.conf":
+        onlyif   => '/bin/grep -E "^proxy\s*=" /etc/yum.conf',
+        path     => ['/bin'],
+        provider => 'shell'
+      }
+    #  yumrepo { 'main': proxy => 'absent' }
+    } 
+    
     # Useful tools/utilities
     $packlist = [
       'epel-release','at','cronie-anacron','crontabs',
@@ -238,7 +253,7 @@ class profile::base::centos6 {
   ) {
     class { '::ntp':
       package_manage => true,
-      package_ensure => 'latest',
+      package_ensure => 'installed',
       service_enable => true,
       service_ensure => 'running',
       servers        => $ntp_servers,
@@ -256,7 +271,7 @@ class profile::base::centos6 {
     $inet_protocols = 'ipv4',
     $relayhost = $profile::base::centos6::postfix_relayhost
   ) {
-    package { 'postfix': ensure => 'latest' }
+    package { 'postfix': ensure => 'installed' }
     service { 'postfix':
       ensure  => 'running',
       enable  => true,
@@ -274,7 +289,7 @@ class profile::base::centos6 {
 
 
   class auditd ($puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir) {
-    package { 'audit': ensure => 'latest' }
+    package { 'audit': ensure => 'installed' }
     service { 'auditd':
       ensure  => 'running',
       enable  => true,
@@ -604,8 +619,14 @@ class profile::base::centos6 {
     }
     
     # Custom selinux settings
-    selinux::boolean { 'antivirus_can_scan_system': ensure => 'on' }
-    selinux::boolean { 'antivirus_use_jit': ensure => 'on' }
+    selboolean { 'antivirus_can_scan_system':
+      persistent => true,
+      value   => 'on'
+    }
+    selboolean { 'antivirus_use_jit':
+      persistent => true,
+      value   => 'on'
+    }
     
     # Periodic system scan script
     file { $clamdscan:

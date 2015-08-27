@@ -128,10 +128,10 @@ DatabaseMirror db.local.clamav.net
 #HTTPProxyPort 1234
 #HTTPProxyUsername myusername
 #HTTPProxyPassword mypass
-<% if @proxy_server != '' -%>
+<% if @proxy_server != 'none' -%>
 HTTPProxyServer <%= @proxy_server %>
 <% end -%>
-<% if @proxy_port != '' -%>
+<% if @proxy_port != 'none' -%>
 HTTPProxyPort <%= @proxy_port %>
 <% end -%>
 
