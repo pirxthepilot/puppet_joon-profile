@@ -123,7 +123,8 @@ class profile::base::centos6 {
     $packlist = [
       'epel-release','at','cronie-anacron','crontabs',
       'curl','ed','sed','screen','man','nano','srm',
-      'tcp_wrappers','tree','vim-enhanced','wget','sysstat'
+      'tcp_wrappers', 'telnet', 'tree','vim-enhanced',
+      'wget','sysstat'
     ]
     package { $packlist: ensure => 'installed' }
 
@@ -467,6 +468,7 @@ class profile::base::centos6 {
 
   class iptables_init ($puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir) {
 
+    # Initialize the iptables config file
     file { "$puppet_scripts_dir/iptables_init.sh":
       owner   => 'root',
       group   => 'root',
@@ -474,9 +476,19 @@ class profile::base::centos6 {
       content => file('profile/centos6/puppet_scripts/iptables_init.sh')
     }
     exec { "$puppet_scripts_dir/iptables_init.sh":
-      onlyif   => '! /bin/grep "\-A INPUT \-j DROP" /etc/sysconfig/iptables',
+      #onlyif   => '! /bin/grep "\-A INPUT \-j DROP" /etc/sysconfig/iptables',
+      onlyif   => '! /bin/grep "Puppet\-Custom\-INPUT" /etc/sysconfig/iptables',
       path     => ['/bin', '/sbin'],
       provider => 'shell'
+    }
+
+    # Install the custom IPtables config script
+    file { '/root/puppet_scripts/puppet_custom_iptables.sh':
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/centos6/puppet_scripts/puppet_custom_iptables.sh'),
     }
 
   }

@@ -1,0 +1,13 @@
+<!-- OSSEC agent config                          -->
+<!-- Managed by Puppet - do not edit!            -->
+<!-- NOTE: Actual agent config is set on the     -->
+<!--       server side via etc/shared/agent.conf -->
+<ossec_config>
+  <client>
+    <server-ip><%= @ossec_server %></server-ip>
+<% if @config_profile != '' %>    <config-profile><%= @config_profile %></config-profile>
+<% end -%>  </client>
+<% if @ar_repeat != '' %>  <active-response>
+    <repeated_offenders><%= @ar_repeat %></repeated_offenders>
+  </active-response>
+<% end -%></ossec_config>

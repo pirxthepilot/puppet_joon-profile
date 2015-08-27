@@ -1,5 +1,0 @@
-/var/log/clamav/clamdscan.log {
-    monthly
-    create 0664 root root
-    rotate 6
-}

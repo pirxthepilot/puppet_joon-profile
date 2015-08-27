@@ -38,15 +38,8 @@ class profile::agent::checkmk {
   }
 
   # IPtables
-  file { '/root/puppet_scripts/puppet_custom_iptables.sh':
-    ensure  => 'present',
-    owner   => 'root',
-    group   => 'root',
-    mode    => '0750',
-    content => file('profile/centos6/puppet_scripts/puppet_custom_iptables.sh'),
-  }
   exec { "$puppet_scripts_dir/puppet_custom_iptables.sh update $nagios_server tcp 6556":
-    unless   => "/bin/grep \"\-s $nagios_server.*\-\-dport 6556 \-j ACCEPT\" /etc/sysconfig/iptables",
+    unless   => "/bin/grep \"\-s $nagios_server/32.*\-\-dport 6556 \-j ACCEPT\" /etc/sysconfig/iptables",
     path     => ['/bin', '/sbin'],
     provider => 'shell'
   }
