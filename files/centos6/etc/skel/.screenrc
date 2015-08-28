@@ -1,0 +1,13 @@
+term screen-256color
+defscrollback 2048
+idle 900 lockscreen
+
+#hardstatus alwayslastline "%-w%{= BW}%50>%n %t%{-}%+w%<"
+hardstatus alwayslastline
+hardstatus string '%{= Kd} %{= Kd}%-w%{= Kr}[%{= KW}%n %t%{= Kr}]%{= Kd}%+w %-= %{KG} %H%{KW}|%{KY}%101`%{KW}|%D %M %d %Y%{= Kc} %C%A%{-}'
+
+# Hide hardstatus: ctrl-a f
+bind f eval "hardstatus ignore"
+
+# Show hardstatus: ctrl-a F
+bind F eval "hardstatus alwayslastline"

@@ -587,6 +587,24 @@ class profile::base::centos6 {
       content => file('profile/centos6/etc/security/limits.d/00-coredumps.conf')
     }
 
+    # Default .screenrc
+    file { "/etc/skel/.screenrc":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/skel/.screenrc')
+    }
+
+    # Default .vimrc
+    file { "/etc/skel/.vimrc":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file('profile/centos6/etc/skel/.vimrc')
+    }
+
    # Undo disabling of IPv6 module (relic of standard CentOS VM template)
    file { "/etc/modprobe.d/ipv6.conf": ensure => 'absent' }
 

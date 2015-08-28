@@ -5,7 +5,7 @@
 #
 # This will deploy the module to its rightful place:
 # - /etc/puppet/environments/<environment>/modules
-# v1.1
+# v1.2
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -17,15 +17,29 @@ ENVIRONMENT="$1"
 MODPATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 MODNAME="`printf '%s\n' "${MODPATH##*/}"`"
 PKGPATH="$MODPATH/pkg"
+ENVPATH='/etc/puppet/environments'
 
 # Environment tests
 if [ -z "$ENVIRONMENT" ]; then
 	echo "You must specify an environment."
 	exit 1
 fi
-if [ ! -d "/etc/puppet/environments/$ENVIRONMENT" ]; then
+if [ ! -d "$ENVPATH/$ENVIRONMENT" ]; then
 	echo "The environment '$ENVIRONMENT' does not exist."
 	exit 1
+fi
+
+# Confirm
+echo  "WARNING: YOU ARE ABOUT TO INSTALL $MODNAME INTO"
+echo -n "THE $ENVIRONMENT ENVIRONMENT. PROCEED? [y/n] "
+read confirm
+
+if [ "${confirm,,}" == "n" ]; then
+    echo "ok, cancelling"
+    exit 0
+elif [ "${confirm,,}" != "y" ]; then
+    echo "Invalid input."
+    exit 1
 fi
 
 # Build
@@ -49,4 +63,6 @@ PKGFILE=`find $PKGPATH -name *.tar.gz | sort -n | tail -n 1`
 echo "Deploying $PKGFILE to $ENVIRONMENT.."
 puppet module uninstall --environment $ENVIRONMENT --ignore-changes $MODNAME
 puppet module install $PKGFILE --environment $ENVIRONMENT
+echo "Adjusting permissions on $ENVPATH/$ENVIRONMENT.."
+chown -R --reference=$ENVPATH $ENVPATH/$ENVIRONMENT
 echo "Done!"
