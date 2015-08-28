@@ -685,7 +685,7 @@ class profile::base::centos6 {
     $su_file            = '/etc/pam.d/su'
     $logindefs_file     = '/etc/login.defs'
     $securetty_file     = '/etc/securetty'
-    $profile_file       = '/etc/profile'
+    $umask_file         = '/etc/profile.d/umask.sh'
 
     # /etc/pam.d
     file { $system_auth_file:
@@ -735,13 +735,13 @@ class profile::base::centos6 {
       content => file("profile/centos6$securetty_file")
     }
 
-    # /etc/profile
-    file { $profile_file:
+    # /etc/profile.d/umask.sh
+    file { $umask_file:
       ensure  => 'present',
       owner   => 'root',
       group   => 'root',
       mode    => '0644',
-      content => file("profile/centos6$profile_file")
+      content => file("profile/centos6$umask_file")
     }
 
   }
