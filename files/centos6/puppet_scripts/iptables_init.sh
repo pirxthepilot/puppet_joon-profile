@@ -2,6 +2,12 @@
 # Initialize IPtables script - run once only
 
 IPTABLESCONF='/etc/sysconfig/iptables'
+DATEFORM=`date +"%Y%m%d_%H%M"`
+
+# Backup current iptables file first
+/bin/cp $IPTABLESCONF ${IPTABLESCONF}.$DATEFORM
+
+# Initialize!
 /bin/cat <<EOT > $IPTABLESCONF
 # Firewall configuration written by system-config-firewall
 # Manual customization of this file is not recommended.
