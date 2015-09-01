@@ -44,8 +44,9 @@ class profile::base::centos6 {
   $timezone           = hiera('profile::base::timezone')
   $proxy_server       = hiera('profile::base::proxy_server', 'none')
   $proxy_port         = hiera('profile::base::proxy_port', 'none')
+  $puppet_interval    = hiera('profile::base::puppet_interval', '30m' )
   $ntp_interfaces     = hiera('profile::base::centos6::ntp_interfaces')
-  $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
+  $selinux_mode       = hiera('profile::base::centos6::selinux_mode', 'enforcing')
   $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
   $sshd_port          = hiera('profile::base::centos6::sshd_port', 22)
   $sshd_addressfamily = hiera('profile::base::centos6::sshd_addressfamily', 'any')
@@ -68,7 +69,7 @@ class profile::base::centos6 {
   $login_pw_warnage   = hiera('profile::base::centos6::login_pw_warnage', '14')
   $login_lo_attempts  = hiera('profile::base::centos6::login_lo_attempts', '5')
   $login_lo_unlocksec = hiera('profile::base::centos6::login_lo_unlocksec', '900')
-  $puppet_interval    = hiera('profile::base::puppet_interval', '30m' )
+  $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
 
 
   # Local variables
@@ -85,7 +86,8 @@ class profile::base::centos6 {
     $puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir,
     $tz                 = $profile::base::centos6::timezone,
     $proxy_server       = $profile::base::centos6::proxy_server,
-    $proxy_port         = $profile::base::centos6::proxy_port
+    $proxy_port         = $profile::base::centos6::proxy_port,
+    $selinux_mode       = $profile::base::centos6::selinux_mode
   ) {
     
     # Set timezone
@@ -130,9 +132,7 @@ class profile::base::centos6 {
     package { $packlist: ensure => 'installed' }
 
     # SELinux
-    class { '::selinux':
-      mode => 'enforcing'
-    }
+    class { '::selinux': mode => $selinux_mode }
 
   }
 
