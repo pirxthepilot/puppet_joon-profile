@@ -65,4 +65,6 @@ puppet module uninstall --environment $ENVIRONMENT --ignore-changes $MODNAME
 puppet module install $PKGFILE --environment $ENVIRONMENT
 echo "Adjusting permissions on $ENVPATH/$ENVIRONMENT.."
 chown -R --reference=$ENVPATH $ENVPATH/$ENVIRONMENT
+find $ENVPATH/$ENVIRONMENT -type f -exec chmod 644 {} \;
+find $ENVPATH/$ENVIRONMENT -type d -exec chmod 755 {} \;
 echo "Done!"
