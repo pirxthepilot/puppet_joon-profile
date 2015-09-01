@@ -56,7 +56,6 @@ class profile::base::centos6 {
   $sshd_tcpforwarding = hiera('profile::base::centos6::sshd_tcpforwarding', 'no')
   $sshd_usedns        = hiera('profile::base::centos6::sshd_usedns', 'yes')
   $sshd_allowgroups   = hiera('profile::base::centos6::sshd_allowgroups', 'wheel')
-  $sshd_tcpfwdgroup   = hiera('profile::base::centos6::sshd_tcpfwdgroup', '')
   $clamav_excludes    = hiera('profile::base::centos6::clamav_excludes', [])
   $clamav_mirrors     = hiera('profile::base::centos6::clamav_mirrors', [])
   $clamav_scanhour    = hiera('profile::base::centos6::clamav_scanhour', '5')
@@ -194,8 +193,7 @@ class profile::base::centos6 {
     $sshd_usepam        = $profile::base::centos6::sshd_usepam,
     $sshd_tcpforwarding = $profile::base::centos6::sshd_tcpforwarding,
     $sshd_usedns        = $profile::base::centos6::sshd_usedns,
-    $sshd_allowgroups   = $profile::base::centos6::sshd_allowgroups,
-    $sshd_tcpfwdgroup   = $profile::base::centos6::sshd_tcpfwdgroup
+    $sshd_allowgroups   = $profile::base::centos6::sshd_allowgroups
   ) {
     class { '::ssh::server':
       storeconfigs_enabled => false,
@@ -245,15 +243,7 @@ class profile::base::centos6 {
         'Ciphers'                         => 'aes192-ctr,aes256-ctr,aes128-ctr',
         'MACs'                            => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
         'AllowGroups'                     => $sshd_allowgroups
-      },
-      if $sshd_tcpfwdgroup!='' {
-        options => {
-          'Match Group wheel' => {
-            'AllowTCPForwarding' => 'yes'
-          }
-        }
       }
-
     }
 
   }
