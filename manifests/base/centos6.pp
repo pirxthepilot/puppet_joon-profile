@@ -39,6 +39,7 @@
 class profile::base::centos6 {
 
   # Hiera lookups
+  $org_name           = hiera('profile::base::org_name')
   $ntp_servers        = hiera('profile::base::ntp_servers')
   $timezone           = hiera('profile::base::timezone')
   $proxy_server       = hiera('profile::base::proxy_server', 'none')
@@ -494,7 +495,7 @@ class profile::base::centos6 {
   }
 
 
-  class networking ($puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir) {
+  class networking ( $puppet_scripts_dir = $profile::base::centos6::puppet_scripts_dir ) {
   
     # Disable IPv6 on networking config 
     file_line { 'sysconfig_network1':
@@ -544,7 +545,7 @@ class profile::base::centos6 {
 
   }
 
-  class miscellaneous {
+  class miscellaneous ( $org_name = $profile::base::centos6::org_name )  {
 
     # Require authentication for single user mode
     file_line { 'sysconfig_init1':
@@ -568,14 +569,14 @@ class profile::base::centos6 {
       owner   => 'root',
       group   => 'root',
       mode    => '0644',
-      content => file('profile/centos6/etc/issue')
+      content => template('profile/centos6/etc/issue.erb')
     }
     file { "/etc/issue.net":
       ensure  => 'present',
       owner   => 'root',
       group   => 'root',
       mode    => '0644',
-      content => file('profile/centos6/etc/issue.net')
+      content => template('profile/centos6/etc/issue.erb')
     }
 
     # Restrict core dumps
