@@ -1,5 +1,7 @@
 # == Class: profile::agent::checkmk
 #
+# Installs the check_mk agent and configures it
+# to point to the correct Nagios server
 #
 class profile::agent::checkmk {
 

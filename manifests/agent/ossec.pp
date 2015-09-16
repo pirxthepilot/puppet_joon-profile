@@ -1,5 +1,7 @@
 # == Class: profile::agent::ossec
 #
+# Installs the OSSEC agent and configures it
+# to point to the correct OSSEC server
 #
 class profile::agent::ossec {
 

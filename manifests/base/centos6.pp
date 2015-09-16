@@ -2,31 +2,6 @@
 #
 # CentOS base install. Configured according to CIS standards.
 #
-# === Parameters
-#
-# Document parameters here.
-#
-# [*sample_parameter*]
-#   Explanation of what this parameter affects and what it defaults to.
-#   e.g. "Specify one or more upstream ntp servers as an array."
-#
-# === Variables
-#
-# Here you should define a list of variables that this module would require.
-#
-# [*sample_variable*]
-#   Explanation of how this variable affects the funtion of this class and if
-#   it has a default. e.g. "The parameter enc_ntp_servers must be set by the
-#   External Node Classifier as a comma separated list of hostnames." (Note,
-#   global variables should be avoided in favor of class parameters as
-#   of Puppet 2.6.)
-#
-# === Examples
-#
-#  class { 'profile':
-#    servers => [ 'pool.ntp.org', 'ntp.local.company.com' ],
-#  }
-#
 # === Authors
 #
 # Joon <joon@modulogeek.com>
@@ -120,11 +95,11 @@ class profile::base::centos6 {
         replace => true
       }
     } else {
-      exec { "/bin/sed -i '/^proxy=/d' /etc/yum.conf":
-        onlyif   => '/bin/grep -E "^proxy\s*=" /etc/yum.conf',
-        path     => ['/bin'],
-        provider => 'shell'
-      }
+      #exec { "/bin/sed -i '/^proxy=/d' /etc/yum.conf":
+      #  onlyif   => '/bin/grep -E "^proxy\s*=" /etc/yum.conf',
+      #  path     => ['/bin'],
+      #  provider => 'shell'
+      #}
       exec { "/bin/sed -i '/^http_proxy=/d' /etc/environment":
         onlyif   => '/bin/grep -E "^http_proxy\s*=" /etc/environment',
         path     => ['/bin'],
