@@ -109,18 +109,30 @@ class profile::base::centos6 {
       replace => true
     }
 
-    # Set proxy server for yum
+    # Set global proxy server environment variable
     # Only apply if proxy is set
     if $proxy_server!=undef and $proxy_server!='none' {
-      yumrepo { 'main': proxy => "http://$proxy_server:$proxy_port" }
+      #yumrepo { 'main': proxy => "http://$proxy_server:$proxy_port" }
+      file_line { '/etc/environment':
+        path    => '/etc/environment',
+        line    => "http_proxy=http://$proxy_server:$proxy_port",
+        match   => 'http_proxy',
+        replace => true
+      }
     } else {
       exec { "/bin/sed -i '/^proxy=/d' /etc/yum.conf":
         onlyif   => '/bin/grep -E "^proxy\s*=" /etc/yum.conf',
         path     => ['/bin'],
         provider => 'shell'
       }
-    #  yumrepo { 'main': proxy => 'absent' }
+      exec { "/bin/sed -i '/^http_proxy=/d' /etc/environment":
+        onlyif   => '/bin/grep -E "^http_proxy\s*=" /etc/environment',
+        path     => ['/bin'],
+        provider => 'shell'
+      }
     } 
+
+    # Set global proxy server environment variable
     
     # Useful tools/utilities
     $packlist = [

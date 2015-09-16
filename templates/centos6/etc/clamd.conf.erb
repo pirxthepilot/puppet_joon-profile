@@ -172,6 +172,7 @@ ExcludePath ^/var/spool/
 ExcludePath ^/var/log/audit/
 ExcludePath ^/var/clamav/
 ExcludePath ^/usr/share/doc/clamav.*
+ExcludePath ^/var/tmp/clamav*
 <% if @exclude_paths != [] -%>
 <% [@exclude_paths].flatten.each do |path| -%>
 ExcludePath <%= path %>
