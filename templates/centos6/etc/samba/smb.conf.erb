@@ -1,0 +1,13 @@
+# /etc/samba/smb.conf
+# Managed by Puppet - do not modify!
+# For AD integration
+
+[global]
+  workgroup = <%= @ad_domain_nb %>
+  client signing = yes
+  client use spnego = yes
+  kerberos method = secrets and keytab
+  realm = <%= @ad_domain_upcase %>
+  security = ads
+  log file = /var/log/samba/log.%m
+  max log size = 50

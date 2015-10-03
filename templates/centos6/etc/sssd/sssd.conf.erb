@@ -1,0 +1,35 @@
+# /etc/sssd/sssd.conf
+# Managed by Puppet - do not modify!
+# For AD integration
+
+[sssd]
+config_file_version = 2
+debug_level = 0
+domains = <%= @ad_domain %>
+services = nss, pam
+
+[domain/<%= @ad_domain %>]
+# Providers
+id_provider = ad
+access_provider = ad
+auth_provider = ad
+chpass_provider = ad
+
+debug_level = 3
+
+# Access restriction
+ad_access_filter = (<%= @ad_acl_dn %>)
+
+# Homedir and shell options
+default_shell = /bin/bash
+override_homedir = /home/%d/%u
+homedir_umask = 077
+
+# Permits offline logins:
+cache_credentials = true
+
+# Enables use of POSIX UIDs and GIDs:
+#ldap_id_mapping = false
+
+# Comment out if you prefer to user shortnames.
+#use_fully_qualified_names = True

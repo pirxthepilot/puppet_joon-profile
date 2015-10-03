@@ -1,0 +1,20 @@
+# /etc/krb5.conf
+# Managed by Puppet - do not modify!
+# For AD integration
+
+[libdefaults]
+ default_realm = <%= @ad_domain_upcase %>
+ dns_lookup_realm = true
+ dns_lookup_kdc = true
+
+[realms]
+ <%= @ad_domain_upcase %> = {
+<% [@ad_servers].flatten.each do |server| -%>
+  kdc = <%= server %>
+  admin_server = <%= server %>
+<% end -%>
+ }
+
+[domain_realm]
+ .<%= @ad_domain %> = <%= @ad_domain_upcase %>
+ <%= @ad_domain %> = <%= @ad_domain_upcase %>

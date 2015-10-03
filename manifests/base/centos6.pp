@@ -45,7 +45,13 @@ class profile::base::centos6 {
   $login_lo_attempts  = hiera('profile::base::centos6::login_lo_attempts', '5')
   $login_lo_unlocksec = hiera('profile::base::centos6::login_lo_unlocksec', '900')
   $postfix_relayhost  = hiera('profile::base::centos6::postfix_relayhost', [])
-
+  $auth_activedir     = hiera('profile::base::centos6::auth_activedir', 'no')
+  if $auth_activedir=='yes' {
+    $auth_ad_domain     = hiera('profile::base::centos6::auth_ad_domain')
+    $auth_ad_domain_nb  = hiera('profile::base::centos6::auth_ad_domain_nb')
+    $auth_ad_servers    = hiera('profile::base::centos6::auth_ad_servers')
+    $auth_ad_acl_dn     = hiera('profile::base::centos6::auth_ad_acl_dn')
+  }
 
   # Local variables
   $puppet_scripts_dir = '/root/puppet_scripts'
@@ -114,7 +120,7 @@ class profile::base::centos6 {
       'epel-release','at','cronie-anacron','crontabs',
       'curl','ed','sed','screen','man','nano','srm',
       'tcp_wrappers', 'telnet', 'tree','vim-enhanced',
-      'wget','sysstat'
+      'wget','sysstat', 'lsof', 'strace', 'yum-utils'
     ]
     package { $packlist: ensure => 'installed' }
 
@@ -534,6 +540,9 @@ class profile::base::centos6 {
 
   class miscellaneous ( $org_name = $profile::base::centos6::org_name )  {
 
+    $umask_file     = '/etc/profile.d/umask.sh'
+    $securetty_file = '/etc/securetty'
+
     # Require authentication for single user mode
     file_line { 'sysconfig_init1':
       path    => '/etc/sysconfig/init',
@@ -591,6 +600,24 @@ class profile::base::centos6 {
       group   => 'root',
       mode    => '0644',
       content => file('profile/centos6/etc/skel/.vimrc')
+    }
+
+    # /etc/profile.d/umask.sh
+    file { $umask_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => file("profile/centos6$umask_file")
+    }
+
+    # /etc/securetty
+    file { $securetty_file:
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0600',
+      content => file("profile/centos6$securetty_file")
     }
 
    # Undo disabling of IPv6 module (relic of standard CentOS VM template)
@@ -682,7 +709,12 @@ class profile::base::centos6 {
     $pw_mindays    = $profile::base::centos6::login_pw_mindays,
     $pw_warnage    = $profile::base::centos6::login_pw_warnage,
     $lo_attempts   = $profile::base::centos6::login_lo_attempts,
-    $lo_unlocktime = $profile::base::centos6::login_lo_unlocksec
+    $lo_unlocktime = $profile::base::centos6::login_lo_unlocksec,
+    $activedir     = $profile::base::centos6::auth_activedir,
+    $ad_domain     = $profile::base::centos6::auth_ad_domain,
+    $ad_domain_nb  = $profile::base::centos6::auth_ad_domain_nb,
+    $ad_servers    = $profile::base::centos6::auth_ad_servers,
+    $ad_acl_dn    = $profile::base::centos6::auth_ad_acl_dn
 
   ) {
 
@@ -690,8 +722,158 @@ class profile::base::centos6 {
     $password_auth_file = '/etc/pam.d/password-auth-local'  
     $su_file            = '/etc/pam.d/su'
     $logindefs_file     = '/etc/login.defs'
-    $securetty_file     = '/etc/securetty'
-    $umask_file         = '/etc/profile.d/umask.sh'
+    $nsswitch_file      = '/etc/nsswitch.conf'
+    $krb5_file          = '/etc/krb5.conf'
+    $smb_file           = '/etc/samba/smb.conf'
+    $sssd_file          = '/etc/sssd/sssd.conf'
+    $sssd_help          = '/etc/sssd/README'
+    $mkhomedir_file     = '/etc/oddjobd.conf.d/oddjobd-mkhomedir.conf'
+
+    $ad_domain_upcase   = upcase($ad_domain)
+
+    ####################################
+    ### Active Directory integration ###
+    ####################################
+    if $activedir=='yes' {
+
+      ## Package ##
+	  $installpacks = [ 'sssd', 'krb5-workstation', 'samba-common',
+                        'authconfig', 'oddjob-mkhomedir' ]
+      package { $installpacks: ensure => 'installed' }
+
+      ## Configure ##
+      # TODO: Maybe run the authconfig command?
+      # 
+      # /etc/nsswitch.conf 
+      file_line { 'nsswitch-passwd':
+        path    => $nsswitch_file,
+        line    => 'passwd:     files sss',
+        match   => '^passwd:\s*files',
+        replace => true,
+        require => Package['sssd'],
+        notify  => Exec["authconfig-update"]
+      }
+
+      # /etc/krb5.conf
+      file { $krb5_file:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0644',
+        require => Package['krb5-workstation'],
+        content => template("profile/centos6$krb5_file.erb")
+      }
+
+      # /etc/samba/smb.conf
+      file { $smb_file:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0644',
+        require => Package['samba-common'],
+        content => template("profile/centos6$smb_file.erb")
+      }
+
+      # /etc/sssd/sssd.conf
+      file { $sssd_file:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0600',
+        require => Package['sssd'],
+        notify  => Service['sssd'],
+        content => template("profile/centos6$sssd_file.erb")
+      }
+      file { $sssd_help:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0600',
+        require => Package['sssd'],
+        content => file("profile/centos6$sssd_help")
+      }
+
+
+      # /etc/oddjobd.conf.d/oddjobd-mkhomedir.conf
+      file { $mkhomedir_file:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0600',
+        require => Package['oddjob-mkhomedir'],
+        notify  => Service['oddjobd'],
+        content => file("profile/centos6$mkhomedir_file")
+      }
+
+      ## Service ##
+      service { 'oddjobd':
+        ensure  => 'running',
+        enable  => true,
+        require => Package['oddjob-mkhomedir']
+      }
+      service { 'sssd':
+        ensure  => 'running',
+        enable  => true,
+        require => Package['sssd']
+      }
+
+
+    } else {
+
+      # Return nsswitch.conf to original
+      file_line { 'nsswitch-passwd':
+        path    => $nsswitch_file,
+        line    => 'passwd:     files',
+        match   => '^passwd:\s*files',
+        replace => true
+      }
+      file_line { 'nsswitch-shadow':
+        path    => $nsswitch_file,
+        line    => 'shadow:     files',
+        match   => '^shadow:\s*files',
+        replace => true
+      }
+      file_line { 'nsswitch-group':
+        path    => $nsswitch_file,
+        line    => 'group:      files',
+        match   => '^group:\s*files',
+        replace => true
+      }
+      file_line { 'nsswitch-services':
+        path    => $nsswitch_file,
+        line    => 'services:   files',
+        match   => '^services:\s*files',
+        replace => true
+      }
+      file_line { 'nsswitch-netgroup':
+        path    => $nsswitch_file,
+        line    => 'netgroup:   files',
+        match   => '^netgroup:\s*files',
+        replace => true
+      }
+      file_line { 'nsswitch-automount':
+        path    => $nsswitch_file,
+        line    => 'automount:  files',
+        match   => '^automount:\s*files',
+        replace => true
+      }
+
+      # TODO: Remove packages here?
+      # Set a marker e.g. /etc/sssd/.deployed-by-puppet
+      # to run remove only once after status change?
+
+      # Disable services
+      #service { 'oddjobd':
+      #  enable  => false,
+      #  require => Package['oddjob-mkhomedir']
+      #}
+      #service { 'sssd':
+      #  ensure  => 'stopped',
+      #  enable  => false,
+      #  require => Package['sssd']
+      #}
+
+    }
 
     # /etc/pam.d
     file { $system_auth_file:
@@ -723,6 +905,12 @@ class profile::base::centos6 {
       replace => true
     }
 
+    # Perform authconfig update if needed
+    exec { "authconfig-update":
+      command => "/usr/sbin/authconfig --update",
+      refreshonly => true
+    }
+
     # /etc/login.defs
     file { $logindefs_file:
       ensure  => 'present',
@@ -732,23 +920,6 @@ class profile::base::centos6 {
       content => template("profile/centos6$logindefs_file.erb")
     }
 
-    # /etc/securetty
-    file { $securetty_file:
-      ensure  => 'present',
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0600',
-      content => file("profile/centos6$securetty_file")
-    }
-
-    # /etc/profile.d/umask.sh
-    file { $umask_file:
-      ensure  => 'present',
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0644',
-      content => file("profile/centos6$umask_file")
-    }
 
   }
 
