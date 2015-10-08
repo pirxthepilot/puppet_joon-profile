@@ -12,28 +12,32 @@ To fix startup failures with oddjobd, reboot this computer.
 In order for sssd to run, this computer needs to be added to the
 AD domain first. Follow the steps below:
 
-1.  Make sure NTPD is installed and running and is synchronized with the
+1.  It is recommended to pre-add the Linux AD client FQDN and hostname
+    on both the domain Active Directory Computers and DNS.
+
+2.  Make sure NTPD is installed and running and is synchronized with the
     domain controller/s, and that all packages are updated in yum.
 
-2.	Add the hostname and FQDN of the Linux client to /etc/hosts:
+3.	Run "hostname -f" and ensure that the hostname is the FQDN. If not,
+    edit the localhost entry on the /etc/hosts file:
 
-  127.0.0.1    thiscomputer.ad.domain.com thiscomputer ...(etc)
+    127.0.0.1    thiscomputer.ad.domain.com thiscomputer ...(etc)
 
-3.  /etc/resolv.conf should point to the domain controllers
+4.  /etc/resolv.conf should point to the domain controllers
 
-4. Obtain Kerberos ticket and verify
+5. Obtain Kerberos ticket and verify
 
   # kinit Administrator (or any AD user that has rights to join a workstation)
   # klist
 
-5. Join to the domain and verify keytab
+6. Join to the domain and verify keytab
 
   # net ads join -k
   # klist -k
 
-6. Obtain new Kerberos ticket via keytab
+7. Obtain new Kerberos ticket via keytab
 
   # kinit -k THISCOMPUTER$
   # klist
 
-7. Restart sssd
+8. Restart sssd

@@ -2,10 +2,19 @@
 # Managed by Puppet - do not modify!
 # For AD integration
 
+[logging]
+ default = FILE:/var/log/krb5libs.log
+ kdc = FILE:/var/log/krb5kdc.log
+ admin_server = FILE:/var/log/kadmind.log
+
 [libdefaults]
  default_realm = <%= @ad_domain_upcase %>
  dns_lookup_realm = true
  dns_lookup_kdc = true
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ forwardable = true
+ rdns = false
 
 [realms]
  <%= @ad_domain_upcase %> = {

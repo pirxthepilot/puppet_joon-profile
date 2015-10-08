@@ -6,6 +6,7 @@
   workgroup = <%= @ad_domain_nb %>
   client signing = yes
   client use spnego = yes
+  client ldap sasl wrapping = seal
   kerberos method = secrets and keytab
   realm = <%= @ad_domain_upcase %>
   security = ads

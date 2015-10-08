@@ -13,7 +13,10 @@
 
 class profile::base::centos6 {
 
-  # Hiera lookups
+  ###################
+  ## Hiera lookups ##
+  ###################
+
   $org_name           = hiera('profile::base::org_name')
   $ntp_servers        = hiera('profile::base::ntp_servers')
   $timezone           = hiera('profile::base::timezone')
@@ -50,12 +53,21 @@ class profile::base::centos6 {
     $auth_ad_domain     = hiera('profile::base::centos6::auth_ad_domain')
     $auth_ad_domain_nb  = hiera('profile::base::centos6::auth_ad_domain_nb')
     $auth_ad_servers    = hiera('profile::base::centos6::auth_ad_servers')
-    $auth_ad_acl_dn     = hiera('profile::base::centos6::auth_ad_acl_dn')
+    $auth_ad_group_dn   = hiera('profile::base::centos6::auth_ad_group_dn')
+    $auth_ad_cache_cr   = hiera('profile::base::centos6::auth_ad_cache_cr')
   }
+
+
+  ##################################
+  ## Declarations & Preprocessing ##
+  ##################################
 
   # Local variables
   $puppet_scripts_dir = '/root/puppet_scripts'
 
+  # AD integration: Extract Linux group name from
+  # Distinguished Name (DN)
+  $auth_ad_group = downcase(regsubst($auth_ad_group_dn, '^CN=([^,]*),.*$', '\1', 'I'))
 
 
   ####################
@@ -186,8 +198,18 @@ class profile::base::centos6 {
     $sshd_usepam        = $profile::base::centos6::sshd_usepam,
     $sshd_tcpforwarding = $profile::base::centos6::sshd_tcpforwarding,
     $sshd_usedns        = $profile::base::centos6::sshd_usedns,
-    $sshd_allowgroups   = $profile::base::centos6::sshd_allowgroups
+    $sshd_allowgroups   = $profile::base::centos6::sshd_allowgroups,
+    $activedir          = $profile::base::centos6::auth_activedir,
+    $ad_group           = $profile::base::centos6::auth_ad_group
   ) {
+
+    # Add AD group to AllowGroups
+    if $activedir=='yes' {
+      $sshd_allowgroups_parsed = "${sshd_allowgroups} ${ad_group}"
+    } else {
+      $sshd_allowgroups_parsed = "$sshd_allowgroups"
+    }
+
     class { '::ssh::server':
       storeconfigs_enabled => false,
       options              => {
@@ -235,7 +257,7 @@ class profile::base::centos6 {
         'Subsystem'                       => 'sftp /usr/libexec/openssh/sftp-server',
         'Ciphers'                         => 'aes192-ctr,aes256-ctr,aes128-ctr',
         'MACs'                            => 'hmac-sha2-256,hmac-sha2-512,hmac-sha1',
-        'AllowGroups'                     => $sshd_allowgroups
+        'AllowGroups'                     => $sshd_allowgroups_parsed
       }
     }
 
@@ -477,7 +499,7 @@ class profile::base::centos6 {
     }
 
     # Install the custom IPtables config script
-    file { '/root/puppet_scripts/puppet_custom_iptables.sh':
+    file { "$puppet_scripts_dir/puppet_custom_iptables.sh":
       ensure  => 'present',
       owner   => 'root',
       group   => 'root',
@@ -701,6 +723,7 @@ class profile::base::centos6 {
 
   class authentication (
 
+    $scripts_dir   = $profile::base::centos6::puppet_scripts_dir,
     $login_retry   = $profile::base::centos6::login_retry,
     $pw_minlen     = $profile::base::centos6::login_pw_minlen,
     $pw_minclass   = $profile::base::centos6::login_pw_minclass,
@@ -714,45 +737,52 @@ class profile::base::centos6 {
     $ad_domain     = $profile::base::centos6::auth_ad_domain,
     $ad_domain_nb  = $profile::base::centos6::auth_ad_domain_nb,
     $ad_servers    = $profile::base::centos6::auth_ad_servers,
-    $ad_acl_dn    = $profile::base::centos6::auth_ad_acl_dn
+    $ad_group_dn   = $profile::base::centos6::auth_ad_group_dn,
+    $ad_cache_cred = $profile::base::centos6::auth_ad_cache_cr,
+    $ad_group      = $profile::base::centos6::auth_ad_group
 
   ) {
 
-    $system_auth_file   = '/etc/pam.d/system-auth-local'  
-    $password_auth_file = '/etc/pam.d/password-auth-local'  
-    $su_file            = '/etc/pam.d/su'
-    $logindefs_file     = '/etc/login.defs'
-    $nsswitch_file      = '/etc/nsswitch.conf'
-    $krb5_file          = '/etc/krb5.conf'
-    $smb_file           = '/etc/samba/smb.conf'
-    $sssd_file          = '/etc/sssd/sssd.conf'
-    $sssd_help          = '/etc/sssd/README'
-    $mkhomedir_file     = '/etc/oddjobd.conf.d/oddjobd-mkhomedir.conf'
+    $system_auth_local   = '/etc/pam.d/system-auth-local'  
+    $password_auth_local = '/etc/pam.d/password-auth-local'  
+    $system_auth_ac      = '/etc/pam.d/system-auth-ac'  
+    $password_auth_ac    = '/etc/pam.d/password-auth-ac'  
+    $su_file             = '/etc/pam.d/su'
+    $logindefs_file      = '/etc/login.defs'
+    $nsswitch_file       = '/etc/nsswitch.conf'
+    $krb5_file           = '/etc/krb5.conf'
+    $smb_file            = '/etc/samba/smb.conf'
+    $sssd_file           = '/etc/sssd/sssd.conf'
+    $sssd_help           = '/etc/sssd/README'
+    $mkhomedir_file      = '/etc/oddjobd.conf.d/oddjobd-mkhomedir.conf'
+    $authconfig_file     = '/etc/sysconfig/authconfig'
+    $deploy_marker       = '/etc/sssd/.deployed-by-puppet'
 
     $ad_domain_upcase   = upcase($ad_domain)
 
-    ####################################
-    ### Active Directory integration ###
-    ####################################
+    # First install the custom SSSD control script
+    file { "$scripts_dir/sssd-control.sh":
+      ensure  => 'present',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0750',
+      content => file('profile/centos6/puppet_scripts/sssd-control.sh'),
+    }
+
+
     if $activedir=='yes' {
 
-      ## Package ##
+      ####################################
+      ### Active Directory integration ###
+      ####################################
+
+      ## Install ##
+
 	  $installpacks = [ 'sssd', 'krb5-workstation', 'samba-common',
-                        'authconfig', 'oddjob-mkhomedir' ]
+                        'authconfig', 'oddjob-mkhomedir', 'openldap-clients' ]
       package { $installpacks: ensure => 'installed' }
 
       ## Configure ##
-      # TODO: Maybe run the authconfig command?
-      # 
-      # /etc/nsswitch.conf 
-      file_line { 'nsswitch-passwd':
-        path    => $nsswitch_file,
-        line    => 'passwd:     files sss',
-        match   => '^passwd:\s*files',
-        replace => true,
-        require => Package['sssd'],
-        notify  => Exec["authconfig-update"]
-      }
 
       # /etc/krb5.conf
       file { $krb5_file:
@@ -792,7 +822,14 @@ class profile::base::centos6 {
         require => Package['sssd'],
         content => file("profile/centos6$sssd_help")
       }
-
+      file { $deploy_marker:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0600',
+        require  => File[$sssd_file],
+        content => file("profile/centos6$deploy_marker")
+      }
 
       # /etc/oddjobd.conf.d/oddjobd-mkhomedir.conf
       file { $mkhomedir_file:
@@ -805,7 +842,28 @@ class profile::base::centos6 {
         content => file("profile/centos6$mkhomedir_file")
       }
 
+      ## Enable sssd via authconfig inside script ##
+
+      exec { "$scripts_dir/sssd-control.sh enable":
+        unless   => "grep 'USESSSD=yes' $authconfig_file",
+        path     => ['/usr/sbin','/sbin','/bin'],
+        provider => 'shell',
+        require  => File[$sssd_file]
+      }
+
+      ## Sudoers ##
+
+      file { '/etc/sudoers.d/sssd':
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0440',
+        require => Package['sssd'],
+        content => "%$ad_group  ALL=(ALL)       ALL"
+      }
+
       ## Service ##
+
       service { 'oddjobd':
         ensure  => 'running',
         enable  => true,
@@ -817,86 +875,52 @@ class profile::base::centos6 {
         require => Package['sssd']
       }
 
-
     } else {
 
-      # Return nsswitch.conf to original
-      file_line { 'nsswitch-passwd':
-        path    => $nsswitch_file,
-        line    => 'passwd:     files',
-        match   => '^passwd:\s*files',
-        replace => true
-      }
-      file_line { 'nsswitch-shadow':
-        path    => $nsswitch_file,
-        line    => 'shadow:     files',
-        match   => '^shadow:\s*files',
-        replace => true
-      }
-      file_line { 'nsswitch-group':
-        path    => $nsswitch_file,
-        line    => 'group:      files',
-        match   => '^group:\s*files',
-        replace => true
-      }
-      file_line { 'nsswitch-services':
-        path    => $nsswitch_file,
-        line    => 'services:   files',
-        match   => '^services:\s*files',
-        replace => true
-      }
-      file_line { 'nsswitch-netgroup':
-        path    => $nsswitch_file,
-        line    => 'netgroup:   files',
-        match   => '^netgroup:\s*files',
-        replace => true
-      }
-      file_line { 'nsswitch-automount':
-        path    => $nsswitch_file,
-        line    => 'automount:  files',
-        match   => '^automount:\s*files',
-        replace => true
+      ## Config reset ##
+
+      # Disable sssd (Run only once and only after status change) 
+      # Note: Script will also uninstall sssd, oddjob-mkhomedir,
+      #       samba-common, sssd-common, oddjob, krb5-workstation,
+      #       and remove associated config files
+      exec { "$scripts_dir/sssd-control.sh disable":
+        onlyif  => "test -f $deploy_marker",
+        path    => ['/usr/sbin','/sbin','/bin'],
+        provider => 'shell'
       }
 
-      # TODO: Remove packages here?
-      # Set a marker e.g. /etc/sssd/.deployed-by-puppet
-      # to run remove only once after status change?
-
-      # Disable services
-      #service { 'oddjobd':
-      #  enable  => false,
-      #  require => Package['oddjob-mkhomedir']
-      #}
-      #service { 'sssd':
-      #  ensure  => 'stopped',
-      #  enable  => false,
-      #  require => Package['sssd']
-      #}
+      # Remove AD group from sudoers
+      file { '/etc/sudoers.d/sssd': ensure  => 'absent' }
 
     }
 
-    # /etc/pam.d
-    file { $system_auth_file:
+    ###########################################
+    ### Local Password and Account Policies ###
+    ###########################################
+
+    ## /etc/pam.d ##
+
+    file { $system_auth_local:
       ensure  => 'present',
       owner   => 'root',
       group   => 'root',
       mode    => '0644',
-      content => template("profile/centos6$system_auth_file.erb")
+      content => template("profile/centos6$system_auth_local.erb")
     }
-    file { $password_auth_file:
+    file { $password_auth_local:
       ensure  => 'present',
       owner   => 'root',
       group   => 'root',
       mode    => '0644',
-      content => template("profile/centos6$password_auth_file.erb")
+      content => template("profile/centos6$password_auth_local.erb")
     }
     file { '/etc/pam.d/system-auth':
       ensure => 'link',
-      target => $system_auth_file
+      target => $system_auth_local
     }
     file { '/etc/pam.d/password-auth':
       ensure => 'link',
-      target => $password_auth_file
+      target => $password_auth_local
     }
     file_line { 'pam_su':
       path    => $su_file,
@@ -905,13 +929,8 @@ class profile::base::centos6 {
       replace => true
     }
 
-    # Perform authconfig update if needed
-    exec { "authconfig-update":
-      command => "/usr/sbin/authconfig --update",
-      refreshonly => true
-    }
+    ## /etc/login.defs ##
 
-    # /etc/login.defs
     file { $logindefs_file:
       ensure  => 'present',
       owner   => 'root',
@@ -919,7 +938,6 @@ class profile::base::centos6 {
       mode    => '0644',
       content => template("profile/centos6$logindefs_file.erb")
     }
-
 
   }
 

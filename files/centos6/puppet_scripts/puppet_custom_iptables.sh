@@ -2,7 +2,7 @@
 # Add/delete IPtables rules
 # from the Puppet-Custom-INPUT chain
 #
-# Syntax: command [add|update|delete] <srcip> <protocol> <dstport>
+# Syntax: command add|update|delete srcip protocol dstport
 
 ACTION="$1"
 SRCIP="$2"

@@ -1,0 +1,5 @@
+** /etc/sssd/.deployed-by-puppet **
+
+This file was created by Puppet. Unless you
+know what you are doing, DO NOT DELETE THIS
+FILE MANUALLY!

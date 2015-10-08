@@ -18,7 +18,7 @@ chpass_provider = ad
 debug_level = 3
 
 # Access restriction
-ad_access_filter = (<%= @ad_acl_dn %>)
+ad_access_filter = (memberOf=<%= @ad_group_dn %>)
 
 # Homedir and shell options
 default_shell = /bin/bash
@@ -26,7 +26,7 @@ override_homedir = /home/%d/%u
 homedir_umask = 077
 
 # Permits offline logins:
-cache_credentials = true
+cache_credentials = <%= @ad_cache_cred %>
 
 # Enables use of POSIX UIDs and GIDs:
 #ldap_id_mapping = false
