@@ -65,9 +65,15 @@ class profile::base::centos6 {
   # Local variables
   $puppet_scripts_dir = '/root/puppet_scripts'
 
-  # AD integration: Extract Linux group name from
-  # Distinguished Name (DN)
+  # AD integration:
+
+  # 1. Extract Linux group name from Distinguished Name (DN)
   $auth_ad_group = downcase(regsubst($auth_ad_group_dn, '^CN=([^,]*),.*$', '\1', 'I'))
+
+  # 2. Throw an error if group name contains whitespaces
+  if $auth_ad_group =~ /\s+/ {
+    fail("ERROR: AD Group Name '$auth_ad_group' contains whitespace characters!")
+  }
 
 
   ####################
@@ -132,7 +138,8 @@ class profile::base::centos6 {
       'epel-release','at','cronie-anacron','crontabs',
       'curl','ed','sed','screen','man','nano','srm',
       'tcp_wrappers', 'telnet', 'tree','vim-enhanced',
-      'wget','sysstat', 'lsof', 'strace', 'yum-utils'
+      'wget','sysstat', 'lsof', 'strace', 'yum-utils',
+      'yum-plugin-remove-with-leaves'
     ]
     package { $packlist: ensure => 'installed' }
 
@@ -751,6 +758,7 @@ class profile::base::centos6 {
     $logindefs_file      = '/etc/login.defs'
     $nsswitch_file       = '/etc/nsswitch.conf'
     $krb5_file           = '/etc/krb5.conf'
+    $krb5_file_orig      = '/etc/.krb5.conf.orig'
     $smb_file            = '/etc/samba/smb.conf'
     $sssd_file           = '/etc/sssd/sssd.conf'
     $sssd_help           = '/etc/sssd/README'
@@ -792,6 +800,14 @@ class profile::base::centos6 {
         mode    => '0644',
         require => Package['krb5-workstation'],
         content => template("profile/centos6$krb5_file.erb")
+      }
+      file { $krb5_file_orig:
+        ensure  => 'present',
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0644',
+        require => Package['krb5-workstation'],
+        content => file("profile/centos6$krb5_file_orig")
       }
 
       # /etc/samba/smb.conf
@@ -864,10 +880,15 @@ class profile::base::centos6 {
 
       ## Service ##
 
-      service { 'oddjobd':
+      service { 'messagebus':
         ensure  => 'running',
         enable  => true,
         require => Package['oddjob-mkhomedir']
+      }
+      service { 'oddjobd':
+        ensure  => 'running',
+        enable  => true,
+        require => Service['messagebus']
       }
       service { 'sssd':
         ensure  => 'running',
@@ -882,10 +903,10 @@ class profile::base::centos6 {
       # Disable sssd (Run only once and only after status change) 
       # Note: Script will also uninstall sssd, oddjob-mkhomedir,
       #       samba-common, sssd-common, oddjob, krb5-workstation,
-      #       and remove associated config files
+      #       etc., and remove associated config files
       exec { "$scripts_dir/sssd-control.sh disable":
         onlyif  => "test -f $deploy_marker",
-        path    => ['/usr/sbin','/sbin','/bin'],
+        path    => ['/usr/sbin','/usr/bin','/sbin','/bin'],
         provider => 'shell'
       }
 
