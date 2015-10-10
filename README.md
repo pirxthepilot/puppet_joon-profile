@@ -5,9 +5,9 @@
 Puppet profile module. Currently supporting:
 
 * CentOS 6
-** Configuration according to CIS benchmarks
-** Optional agents for OSSEC and Check_MK
-** Active Directory integration via SSSD 'ad' provider (Kerberos 5)
+ * Configuration according to CIS benchmarks
+ * Optional agents for OSSEC and Check_MK
+ * Active Directory integration via SSSD 'ad' provider (Kerberos 5)
 
 
 ## Setup
@@ -26,6 +26,6 @@ TBD
 
 TBD
 
-## Release Notes/Contributors/Etc **Optional**
+## Release Notes/Contributors/Etc
 
 2015-10-10: Full AD integration (and tested too!)
