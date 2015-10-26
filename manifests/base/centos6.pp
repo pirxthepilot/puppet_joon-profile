@@ -108,10 +108,16 @@ class profile::base::centos6 {
     # Only apply if proxy is set
     if $proxy_server!=undef and $proxy_server!='none' {
       #yumrepo { 'main': proxy => "http://$proxy_server:$proxy_port" }
-      file_line { '/etc/environment':
+      file_line { 'http_proxy':
         path    => '/etc/environment',
         line    => "http_proxy=http://$proxy_server:$proxy_port",
         match   => 'http_proxy',
+        replace => true
+      }
+      file_line { 'https_proxy':
+        path    => '/etc/environment',
+        line    => "https_proxy=http://$proxy_server:$proxy_port",
+        match   => 'https_proxy',
         replace => true
       }
     } else {
@@ -125,17 +131,21 @@ class profile::base::centos6 {
         path     => ['/bin'],
         provider => 'shell'
       }
+      exec { "/bin/sed -i '/^https_proxy=/d' /etc/environment":
+        onlyif   => '/bin/grep -E "^https_proxy\s*=" /etc/environment',
+        path     => ['/bin'],
+        provider => 'shell'
+      }
     } 
 
     # Set global proxy server environment variable
     
     # Useful tools/utilities
     $packlist = [
-      'epel-release','at','cronie-anacron','crontabs',
-      'curl','ed','sed','screen','man','nano','srm',
-      'tcp_wrappers', 'telnet', 'tree','vim-enhanced',
-      'wget','sysstat', 'lsof', 'strace', 'yum-utils',
-      'yum-plugin-remove-with-leaves'
+      'epel-release','at', 'bash-completion', 'cronie-anacron','crontabs',
+      'curl', 'ed','sed','screen', 'lsof', 'man', 'man-pages', 'nano','srm',
+      'tcp_wrappers', 'telnet', 'tree','vim-enhanced', 'wget', 'sysstat',
+      'strace', 'yum-utils', 'yum-plugin-remove-with-leaves', 'yum-plugin-security'
     ]
     package { $packlist: ensure => 'installed' }
 

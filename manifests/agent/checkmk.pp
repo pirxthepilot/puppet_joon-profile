@@ -7,10 +7,16 @@ class profile::agent::checkmk {
 
   # Hiera lookups
   $nagios_server = hiera('profile::agent::checkmk::nagios_server')
+  $bind_ip       = hiera('profile::agent::checkmk::bind_ip', 0)
 
   # Other variables
-  $bind_address  = $::ipaddress_eth0
   $puppet_scripts_dir = '/root/puppet_scripts'
+
+  if $bind_ip==0 {
+    $bind_address = $::ipaddress_eth0
+  } else {
+    $bind_address = $bind_ip
+  }
 
   # Install
   package { [ 'check-mk-agent', 'xinetd' ]: ensure => 'latest' }
@@ -41,8 +47,8 @@ class profile::agent::checkmk {
 
   # IPtables
   exec { "$puppet_scripts_dir/puppet_custom_iptables.sh update $nagios_server tcp 6556":
-    unless   => "/bin/grep \"\-s $nagios_server/32.*\-\-dport 6556 \-j ACCEPT\" /etc/sysconfig/iptables",
-    path     => ['/bin', '/sbin'],
+    unless   => "/bin/grep -- \"-s $nagios_server/32.*--dport 6556 -j ACCEPT\" /etc/sysconfig/iptables",
+    path     => ['/bin'],
     provider => 'shell'
   }
 
