@@ -23,6 +23,7 @@ class profile::base::centos6 {
   $selinux_mode       = hiera('profile::base::centos6::selinux_mode', 'enforcing')
   $sysctl_purge       = hiera('profile::base::centos6::sysctl_purge', true)
   $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
+  $sshd_manage        = hiera('profile::base::centos6::sshd_manage', true)
   $sshd_port          = hiera('profile::base::centos6::sshd_port', 22)
   $sshd_addressfamily = hiera('profile::base::centos6::sshd_addressfamily', 'any')
   $sshd_listenaddress = hiera('profile::base::centos6::sshd_listenaddress', [ '0.0.0.0' ])
@@ -1011,7 +1012,9 @@ class profile::base::centos6 {
   include authentication
   include filesystems
   include file_permissions
-  include sshd
+  if $sshd_manage {
+    include sshd
+  }
   include clamav
   include postfix
   include miscellaneous
