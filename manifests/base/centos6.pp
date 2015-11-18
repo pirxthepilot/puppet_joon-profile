@@ -21,6 +21,7 @@ class profile::base::centos6 {
   $puppet_interval    = hiera('profile::base::puppet_interval', '30m' )
   $ntp_interfaces     = hiera('profile::base::centos6::ntp_interfaces')
   $selinux_mode       = hiera('profile::base::centos6::selinux_mode', 'enforcing')
+  $sysctl_purge       = hiera('profile::base::centos6::sysctl_purge', true)
   $sysctl_ipv4forward = hiera('profile::base::centos6::sysctl_ipv4forward', '0')
   $sshd_port          = hiera('profile::base::centos6::sshd_port', 22)
   $sshd_addressfamily = hiera('profile::base::centos6::sshd_addressfamily', 'any')
@@ -156,11 +157,12 @@ class profile::base::centos6 {
 
 
   class sysctld (
-     $ipv4forward = $profile::base::centos6::sysctl_ipv4forward
+     $ipv4forward = $profile::base::centos6::sysctl_ipv4forward,
+     $purge_conf  = $profile::base::centos6::sysctl_purge
   ) {
 
-    file { '/etc/sysctl.conf': ensure => 'absent' }  # Remove sysctl.conf; we will use sysctl.d instead
-    class { '::sysctl::base': purge => true }        # Purge original contents of systcl.d (if any)
+    file { '/etc/sysctl.conf': ensure => 'absent' }   # Remove sysctl.conf; we will use sysctl.d instead
+    class { '::sysctl::base': purge => $purge_conf }  # Purge original contents of systcl.d (if any)
 
     sysctl { 'kernel.sysrq': value => '0' }
     sysctl { 'kernel.core_uses_pid': value => '1' }
