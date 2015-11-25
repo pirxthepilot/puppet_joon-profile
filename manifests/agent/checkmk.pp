@@ -19,7 +19,7 @@ class profile::agent::checkmk {
   }
 
   # Install
-  package { [ 'check-mk-agent', 'xinetd' ]: ensure => 'latest' }
+  package { [ 'check-mk-agent', 'xinetd' ]: ensure => 'installed' }
 
   # Configure
   file { '/etc/xinetd.d/check-mk-agent':
